@@ -10,10 +10,6 @@
     loopA,
     loopB,
     activeLoopId = null,
-    speedTrainerRunning = false,
-    speedTrainerPercent = 100,
-    speedTrainerPass = 1,
-    speedTrainerCompleted = false,
     onsetloop,
     onclearloop,
     onchange,
@@ -24,15 +20,10 @@
     loopA: number | null;
     loopB: number | null;
     activeLoopId?: string | null;
-    speedTrainerRunning?: boolean;
-    speedTrainerPercent?: number;
-    speedTrainerPass?: number;
-    speedTrainerCompleted?: boolean;
     onsetloop: (which: "a" | "b") => void;
     onclearloop: () => void;
     onchange: () => void;
     onjump: (loop: SavedLoop) => void;
-    /** Speed, drawn between the loop and the speed trainer. */
     between?: Snippet;
   } = $props();
 
@@ -61,12 +52,6 @@
   function deleteLoop(id: string) {
     practice.loops = practice.loops.filter((item) => item.id !== id);
     onchange();
-  }
-
-  function formatSpeed(speed: number | undefined): string {
-    if (speed == null) return "";
-    const pct = speed <= 3 ? Math.round(speed * 100) : Math.round(speed);
-    return `${pct}%`;
   }
 </script>
 
@@ -131,14 +116,6 @@
               <span class="saved-loop-bars">
                 {t("player.loopRange", { a: loop.a + 1, b: loop.b + 1 })}
               </span>
-              {#if loop.highestSpeed != null}
-                <span
-                  class="pill pill-accent loop-speed-badge"
-                  data-testid={`saved-loop-speed-${loop.id}`}
-                >
-                  {formatSpeed(loop.highestSpeed)}
-                </span>
-              {/if}
             </button>
             <button
               class="icon-button ghost small danger-text"
@@ -157,119 +134,3 @@
 </div>
 
 {#if between}{@render between()}{/if}
-
-<div class="panel-group" data-testid="speed-trainer-panel">
-  <h3>{t("speedTrainer.title")}</h3>
-  <div class="mix-row">
-    <label class="check">
-      <input
-        type="checkbox"
-        data-testid="speed-trainer-toggle"
-        checked={practice.speedTrainer.enabled}
-        onchange={(event) => {
-          practice.speedTrainer.enabled = event.currentTarget.checked;
-          onchange();
-        }}
-      />
-      {t("speedTrainer.enable")}
-    </label>
-  </div>
-
-  {#if practice.speedTrainer.enabled}
-    <div class="speed-trainer-controls" data-testid="speed-trainer-controls">
-      <label class="field compact-field">
-        <span>{t("speedTrainer.start")} (%)</span>
-        <input
-          type="number"
-          min="10"
-          max="300"
-          step="5"
-          data-testid="speed-trainer-start"
-          value={practice.speedTrainer.startPercent}
-          onchange={(event) => {
-            const val = Number(event.currentTarget.value);
-            if (val >= 10 && val <= 300) {
-              practice.speedTrainer.startPercent = Math.round(val);
-              onchange();
-            }
-          }}
-        />
-      </label>
-      <label class="field compact-field">
-        <span>{t("speedTrainer.target")} (%)</span>
-        <input
-          type="number"
-          min="10"
-          max="300"
-          step="5"
-          data-testid="speed-trainer-target"
-          value={practice.speedTrainer.targetPercent}
-          onchange={(event) => {
-            const val = Number(event.currentTarget.value);
-            if (val >= 10 && val <= 300) {
-              practice.speedTrainer.targetPercent = Math.round(val);
-              onchange();
-            }
-          }}
-        />
-      </label>
-      <label class="field compact-field">
-        <span>{t("speedTrainer.step")} (%)</span>
-        <input
-          type="number"
-          min="1"
-          max="50"
-          step="1"
-          data-testid="speed-trainer-step"
-          value={practice.speedTrainer.stepPercent}
-          onchange={(event) => {
-            const val = Number(event.currentTarget.value);
-            if (val >= 1 && val <= 50) {
-              practice.speedTrainer.stepPercent = Math.round(val);
-              onchange();
-            }
-          }}
-        />
-      </label>
-      <label class="field compact-field">
-        <span>{t("speedTrainer.passesPerStep")}</span>
-        <input
-          type="number"
-          min="1"
-          max="20"
-          step="1"
-          data-testid="speed-trainer-passes"
-          value={practice.speedTrainer.passesPerStep}
-          onchange={(event) => {
-            const val = Number(event.currentTarget.value);
-            if (val >= 1 && val <= 20) {
-              practice.speedTrainer.passesPerStep = Math.round(val);
-              onchange();
-            }
-          }}
-        />
-      </label>
-    </div>
-
-    {#if speedTrainerRunning || speedTrainerCompleted}
-      <div class="speed-trainer-status" data-testid="speed-trainer-status">
-        {#if speedTrainerCompleted}
-          <span class="pill pill-accent"
-            >{t("speedTrainer.goalReached", {
-              speed: practice.speedTrainer.targetPercent,
-            })}</span
-          >
-        {:else}
-          <span class="muted small">
-            {t("speedTrainer.status", {
-              pass: speedTrainerPass,
-              totalPasses: practice.speedTrainer.passesPerStep,
-              speed: speedTrainerPercent,
-              target: practice.speedTrainer.targetPercent,
-            })}
-          </span>
-        {/if}
-      </div>
-    {/if}
-  {/if}
-</div>

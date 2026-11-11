@@ -293,10 +293,10 @@
     "paused": "Pausado"
   },
   "playerSheet": {
-    "expand": "Mostrar mais do painel de prática",
-    "shrink": "Mostrar menos do painel de prática",
-    "label": "Prática, áudio, sincronia e visualização",
-    "practice": "Prática",
+    "expand": "Mostrar mais opções de reprodução",
+    "shrink": "Mostrar menos opções de reprodução",
+    "label": "Opções de reprodução",
+    "practice": "Repetições",
     "audio": "Áudio",
     "sync": "Sincronia",
     "view": "Visualização",

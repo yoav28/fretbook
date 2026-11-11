@@ -2,10 +2,7 @@
   import type { Snippet } from "svelte";
 
   import Cover from "./Cover.svelte";
-  import ExportSheet, { type ExportItem } from "./ExportSheet.svelte";
   import Icon from "./Icon.svelte";
-  import SongLibraryActions from "./SongLibraryActions.svelte";
-  import SongMetadata from "./SongMetadata.svelte";
   import SongTags from "./SongTags.svelte";
   import Chip from "./ui/Chip.svelte";
   import IconButton from "./ui/IconButton.svelte";
@@ -13,7 +10,6 @@
   import PageHeader from "./ui/PageHeader.svelte";
   import { deleteSong, setSongTags } from "../lib/api";
   import { coverSrc } from "../lib/cover";
-  import { levelOf } from "../lib/difficulty";
   import { t } from "../lib/i18n.svelte";
   import { keyLabel } from "../lib/keys";
   import { isSongSaved, removeSongOffline, saveSongOffline } from "../lib/offline/offline.svelte";
@@ -30,65 +26,49 @@
     icon?: string;
   };
 
-  // The header shared by the tab player and the chord sheet: back link, cover, eyebrow, title, one
-  // row of facts and tags, and the actions. Everything else lives in the "⋯" menu. On a phone the
-  // header shrinks to a back link, the star and "⋯", then a small cover beside the title and one
-  // line of facts; the tags and facts move into the Song details sheet.
   let {
     song,
     readOnly = false,
-    shared = false,
     eyebrow,
     strings = 6,
     facts = [],
     factsAfter = [],
     onretune,
-    ontuner,
-    onsetlist,
-    exportItems,
     afterFacts,
     belowHeader,
   }: {
     song: SongDetail;
-    /** The viewer can't edit the song (a band viewer, or an anonymous share link). */
     readOnly?: boolean;
-    /** An anonymous share link: no account, so no library actions at all. */
-    shared?: boolean;
-    /** The instrument or "Chord sheet", shown before the artist. */
     eyebrow: string;
     strings?: number;
-    /** Facts before the key (tuning, capo, tempo) and after it (bars, audio). */
     facts?: Fact[];
     factsAfter?: Fact[];
-    /** Only a tab can be transposed or retuned. */
     onretune?: () => void;
-    ontuner?: () => void;
-    onsetlist: () => void;
-    exportItems: ExportItem[];
-    /** Rendered under the facts, for example the song's saved loops. */
     afterFacts?: Snippet;
-    /** A phone-only bar that sticks under the header, for example the setlist's previous / next. */
     belowHeader?: Snippet;
   } = $props();
 
-  const locked = $derived(ui.demoMode || readOnly || shared);
-  // Tags and favourites are stored on the song, so changing them takes edit access, like the server checks.
-  const ownLocked = $derived(locked);
-
-  // The page keys this component by song id, so the starting values are the song's.
-  // svelte-ignore state_referenced_locally
-  let tags = $state<string[]>([...(song.tags ?? [])]);
-  // svelte-ignore state_referenced_locally
-  let favourite = $state(Boolean(song.favourite));
+  const locked = $derived(ui.demoMode || readOnly);
+  let tags = $state<string[]>([]);
+  let favourite = $state(false);
   let busy = $state(false);
   let error = $state("");
-  let detailsOpen = $state(false);
-  let exportOpen = $state(false);
-  let shareOpen = $state(false);
-  let moveOpen = $state(false);
-
   const PHONE_QUERY = "(max-width: 767px), (max-height: 500px) and (pointer: coarse)";
   let phone = $state(typeof matchMedia !== "undefined" && matchMedia(PHONE_QUERY).matches);
+  const saved = $derived(isSongSaved(song.id));
+  const allFacts = $derived<Fact[]>([
+    ...facts,
+    ...(song.key ? [{ label: keyLabel(song.key, t), testid: "song-key", accent: true }] : []),
+    ...factsAfter,
+  ]);
+  const editHref = $derived(`/songs/${song.id}/edit`);
+  const canEdit = $derived(!locked);
+
+  $effect(() => {
+    tags = [...(song.tags ?? [])];
+    favourite = Boolean(song.favourite);
+  });
+
   $effect(() => {
     if (typeof matchMedia === "undefined") return;
     const query = matchMedia(PHONE_QUERY);
@@ -98,65 +78,25 @@
     return () => query.removeEventListener("change", update);
   });
 
-  const saved = $derived(isSongSaved(song.id));
-  const track = $derived(
-    (song.difficulty_tracks ?? []).find(
-      (item) =>
-        item.track_id === (song.content_kind === "chords" ? "chords" : song.preferred_track_id),
-    ),
-  );
-  const keyFact = $derived<Fact | null>(
-    song.key
-      ? {
-          label: keyLabel(song.key, t),
-          testid: "song-key",
-          accent: true,
-          title: song.key_detected
-            ? t("metadata.keyDetected", { key: keyLabel(song.key, t) })
-            : undefined,
-        }
-      : null,
-  );
-  const levelFact = $derived<Fact | null>(
-    track
-      ? { label: t("songPage.level", { level: levelOf(track.level) }), testid: "song-level" }
-      : null,
-  );
-  const allFacts = $derived<Fact[]>([
-    ...facts,
-    ...(keyFact ? [keyFact] : []),
-    ...factsAfter,
-    ...(levelFact ? [levelFact] : []),
-  ]);
-  const savedFact = $derived<Fact | null>(
-    saved ? { label: t("offline.saved"), testid: "offline-saved", icon: "cloudCheck" } : null,
-  );
-
-  function fail(err: unknown) {
-    error = err instanceof Error ? err.message : t("error.generic");
-  }
-
   async function saveTags(next: string[]) {
     busy = true;
     error = "";
     try {
       tags = await setSongTags(song.id, next);
-      await refreshSongs().catch(() => undefined); // offline: the change is queued
+      await refreshSongs().catch(() => undefined);
     } catch (err) {
-      fail(err);
+      error = err instanceof Error ? err.message : t("error.generic");
     } finally {
       busy = false;
     }
   }
 
   async function toggleStar() {
-    const next = !favourite;
-    error = "";
     try {
-      await starSong(song.id, next);
-      favourite = next;
+      await starSong(song.id, !favourite);
+      favourite = !favourite;
     } catch (err) {
-      fail(err);
+      error = err instanceof Error ? err.message : t("error.generic");
     }
   }
 
@@ -166,8 +106,8 @@
     try {
       if (saved) await removeSongOffline(song.id);
       else await saveSongOffline(song.id, song.title);
-    } catch (err) {
-      error = saved || !(err instanceof Error) ? t("offline.failed") : t("offline.saveFailed");
+    } catch {
+      error = saved ? t("offline.failed") : t("offline.saveFailed");
     } finally {
       busy = false;
     }
@@ -180,16 +120,13 @@
       await refreshSongs().catch(() => undefined);
       navigate("/");
     } catch (err) {
-      fail(err);
+      error = err instanceof Error ? err.message : t("error.generic");
     }
   }
 
-  const editHref = $derived(`/songs/${song.id}/edit`);
-  const canEdit = $derived(!ui.demoMode && !readOnly);
-
   const items = $derived.by<OverflowItem[]>(() => {
     const list: OverflowItem[] = [];
-    if (phone && onretune && !shared)
+    if (phone && onretune)
       list.push({
         id: "transpose",
         label: t("songPage.transpose"),
@@ -206,7 +143,7 @@
         testid: "song-edit-link",
         onclick: () => navigate(editHref),
       });
-    if (!shared && offlineSupported())
+    if (offlineSupported())
       list.push({
         id: "offline",
         label: saved ? t("songPage.removeFromDevice") : t("songPage.keepOnDevice"),
@@ -215,55 +152,7 @@
         disabled: busy,
         onclick: () => void toggleOffline(),
       });
-    if (!shared)
-      list.push({
-        id: "export",
-        label: t("songPage.export"),
-        icon: "download",
-        testid: "export-open",
-        onclick: () => (exportOpen = true),
-      });
-    if (!shared && !ui.demoMode)
-      list.push({
-        id: "setlist",
-        label: t("setlists.addToSetlist"),
-        icon: "listMusic",
-        testid: "song-add-to-setlist",
-        onclick: onsetlist,
-      });
-    if (ontuner)
-      list.push({
-        id: "tuner",
-        label: t("tuner.open"),
-        icon: "tuningFork",
-        testid: "song-tuner",
-        onclick: ontuner,
-      });
-    if (!shared && !readOnly && ui.shareLinks)
-      list.push({
-        id: "share",
-        label: t("sharing.share"),
-        icon: "link",
-        testid: "song-share",
-        onclick: () => (shareOpen = true),
-      });
-    if (!shared)
-      list.push({
-        id: "move",
-        label: readOnly ? t("sharing.copySong") : t("sharing.move"),
-        icon: "library",
-        testid: "song-move",
-        onclick: () => (moveOpen = true),
-      });
-    if (!locked || phone)
-      list.push({
-        id: "details",
-        label: t("songPage.songDetails"),
-        icon: "info",
-        testid: "song-metadata-edit",
-        onclick: () => (detailsOpen = true),
-      });
-    if (!locked)
+    if (canEdit)
       list.push({
         id: "delete",
         label: t("songPage.delete"),
@@ -289,8 +178,8 @@
   titleClass="song-heading"
   eyebrow={phone ? "" : [eyebrow, song.artist].filter(Boolean).join(" · ")}
   subtitle={artistLine}
-  backHref={shared ? "" : "/"}
-  backLabel={shared ? "" : t("app.back")}
+  backHref="/"
+  backLabel={t("app.back")}
 >
   {#snippet leading()}
     <Cover
@@ -304,7 +193,7 @@
   {/snippet}
   {#snippet actions()}
     <div class="header-actions">
-      {#if !ownLocked}
+      {#if !locked}
         <IconButton
           class={favourite ? "song-star on" : "song-star"}
           icon={favourite ? "starFilled" : "star"}
@@ -314,7 +203,7 @@
           onclick={() => void toggleStar()}
         />
       {/if}
-      {#if !phone && onretune && !shared}
+      {#if !phone && onretune}
         <button type="button" class="button" data-testid="song-retune" onclick={onretune}>
           {t("songPage.transpose")}
         </button>
@@ -347,86 +236,21 @@
             icon={fact.icon}
           />
         {/each}
-        {#if savedFact}
-          <Chip
-            variant="meta"
-            accent
-            label={savedFact.label}
-            icon={savedFact.icon}
-            testid={savedFact.testid}
-          />
-        {/if}
-        <SongTags
-          {tags}
-          locked={ownLocked}
-          {busy}
-          onadd={(tag) => saveTags([...tags, tag])}
-          onremove={(tag) => saveTags(tags.filter((own) => own !== tag))}
-        />
       </div>
     {/if}
+    <SongTags
+      {tags}
+      {locked}
+      {busy}
+      onadd={(tag) => saveTags([...tags, tag])}
+      onremove={(tag) => saveTags(tags.filter((own) => own !== tag))}
+    />
     {#if error}<p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>{/if}
     {#if afterFacts}{@render afterFacts()}{/if}
   {/snippet}
 </PageHeader>
 
 {#if belowHeader}{@render belowHeader()}{/if}
-
-<SongMetadata
-  {song}
-  {readOnly}
-  bind:open={detailsOpen}
-  onchange={(next) => {
-    Object.assign(song, {
-      key: next.key,
-      key_detected: next.key_detected,
-      genre: next.genre,
-      album: next.album,
-      year: next.year,
-      notes: next.notes,
-      cover_url: next.cover_url,
-    });
-  }}
->
-  {#snippet extra()}
-    {#if phone}
-      <div class="facts">
-        {#each allFacts as fact (fact.label)}
-          <Chip
-            variant="meta"
-            label={fact.label}
-            title={fact.title}
-            accent={fact.accent}
-            icon={fact.icon}
-          />
-        {/each}
-      </div>
-      <SongTags
-        {tags}
-        locked={ownLocked}
-        {busy}
-        onadd={(tag) => saveTags([...tags, tag])}
-        onremove={(tag) => saveTags(tags.filter((own) => own !== tag))}
-      />
-    {/if}
-  {/snippet}
-</SongMetadata>
-
-{#if !shared}
-  <SongLibraryActions
-    songId={song.id}
-    libraryId={song.library_id ?? ""}
-    canMove={!readOnly}
-    bind:shareOpen
-    bind:moveOpen
-  />
-  <ExportSheet
-    open={exportOpen}
-    subtitle={song.title}
-    items={exportItems}
-    onclose={() => (exportOpen = false)}
-  />
-{/if}
 
 <style>
   .header-actions {
@@ -443,8 +267,6 @@
     min-width: 0;
   }
 
-  /* The header is a compact block here: tight under the back link, and the cover is a thumbnail
-     beside the title instead of the hero art. */
   :global(.page-header.song-header) {
     margin-bottom: var(--sp-4);
   }
@@ -462,9 +284,6 @@
     margin: 0;
   }
 
-  /* On a phone the header is the page's contextual top bar: one sticky row with back, the title
-     and artist, the star and "⋯". It replaces the brand bar; the cover and facts move into the
-     Song details sheet. */
   @media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
     :global(.page-header.song-header) {
       position: sticky;
@@ -483,7 +302,6 @@
       -webkit-backdrop-filter: blur(20px) saturate(1.6);
     }
 
-    /* Just the arrow; the label stays for assistive tech. */
     :global(.page-header.song-header .back) {
       flex: none;
       width: 44px;
@@ -554,7 +372,6 @@
     }
   }
 
-  /* Full screen keeps only the score and the dock. */
   :global(:root[data-fullscreen]) .header-actions {
     display: none;
   }

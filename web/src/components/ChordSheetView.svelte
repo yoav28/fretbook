@@ -6,10 +6,8 @@
   import ChordSetupPicker from "./ChordSetupPicker.svelte";
   import ChordSheet from "./ChordSheet.svelte";
   import ChordStrip from "./ChordStrip.svelte";
-  import ChordWait from "./ChordWait.svelte";
   import Icon from "./Icon.svelte";
   import OverflowMenu from "./ui/OverflowMenu.svelte";
-  import SetlistPicker from "./SetlistPicker.svelte";
   import SongHeader from "./SongHeader.svelte";
   import { parse } from "../lib/chordpro";
   import { loadChoice, saveChoice } from "../lib/chords/choice";
@@ -56,16 +54,12 @@
     return () => query.removeEventListener("change", sync);
   });
 
-  let pickerOpen = $state(false);
   // The chord diagrams take a screen of their own on a phone, so they start collapsed there.
   let diagramsOpen = $state(untrack(() => !phone));
-  let wait = $state<ChordWait | null>(null);
   let transpose = $state(untrack(() => initialTranspose));
   const transposeLabel = $derived(transpose > 0 ? `+${transpose}` : String(transpose));
   let flats = $state(false);
   let size = $state(1);
-  let exporting = $state(false);
-  let error = $state("");
   let choice = $state(untrack(() => loadChoice(song.id)));
 
   const sheet = $derived(parse(song.chordpro ?? ""));
@@ -103,15 +97,12 @@
     saveChoice(song.id, choice);
   }
 
-  let activeChord = $state<string | null>(null);
-
   // Hands-free: a pedal key turns the page or starts the auto-scroll, which reaches the end of the
   // sheet as the song ends (from `{duration:}`, else the tempo and line count, else a typical song).
   let scrolling = $state(false);
 
-  // A chord sheet is read hands-off: keep the screen on while it scrolls, waits for a chord or is on stage.
   $effect(() => {
-    if (scrolling || stage || activeChord !== null) return keepAwake();
+    if (scrolling || stage) return keepAwake();
   });
   const stage = $derived(handsFree.stage);
   const scrollSpeed = $derived(
@@ -205,46 +196,8 @@
     return () => document.removeEventListener("keydown", onKey);
   });
 
-  // Keep the chord to play in view as the sheet moves on.
-  $effect(() => {
-    if (!activeChord) return;
-    document
-      .querySelector<HTMLElement>(".chord-active")
-      ?.scrollIntoView?.({ block: "center", behavior: "smooth" });
-  });
-
   const smaller = () => (size = Math.max(0.8, Math.round((size - 0.1) * 10) / 10));
   const larger = () => (size = Math.min(1.8, Math.round((size + 0.1) * 10) / 10));
-
-  function exportUrl(kind: string): string {
-    return new URL(`api/songs/${song.id}/export.${kind}`, document.baseURI).toString();
-  }
-
-  async function exportPdf() {
-    exporting = true;
-    error = "";
-    try {
-      const { downloadChordSheetPdf } = await import("../lib/export/pdf");
-      await downloadChordSheetPdf({
-        chordpro: song.chordpro ?? "",
-        title: song.title,
-        artist: song.artist,
-        transpose: shapeShift,
-        flats,
-        diagrams: {
-          strings: setup.tuning.strings.length,
-          capoLabel: capo ? t("chordDiagrams.pdfCapo", { fret: capo }) : "",
-          chords: entries.flatMap((entry) =>
-            entry.voicing ? [{ name: entry.name, voicing: entry.voicing }] : [],
-          ),
-        },
-      });
-    } catch {
-      error = t("player.exportPdfFailed");
-    } finally {
-      exporting = false;
-    }
-  }
 </script>
 
 {#snippet transposeControls()}
@@ -275,45 +228,11 @@
 <div class="song-page chords-page" class:stage data-stage={stage}>
   <SongHeader
     {song}
-    {readOnly}
-    {shared}
+    readOnly={readOnly || shared}
     {belowHeader}
     eyebrow={t("library.chordSheet")}
     facts={capo > 0 ? [{ label: t("player.capo", { fret: capo }) }] : []}
-    onsetlist={() => (pickerOpen = true)}
-    exportItems={[
-      {
-        id: "pdf",
-        label: exporting ? t("player.exportingPdf") : t("player.exportPdf"),
-        icon: "file",
-        testid: "export-pdf",
-        disabled: exporting,
-        onclick: () => void exportPdf(),
-      },
-      {
-        id: "print",
-        label: t("chords.print"),
-        icon: "print",
-        testid: "export-print",
-        onclick: () => window.print(),
-      },
-      {
-        id: "chordpro",
-        label: t("chords.exportChordPro"),
-        icon: "chords",
-        testid: "export-chordpro",
-        href: exportUrl("cho"),
-      },
-      {
-        id: "json",
-        label: t("player.exportJson"),
-        icon: "download",
-        testid: "export-json",
-        href: exportUrl("json"),
-      },
-    ]}
   />
-  {#if error}<p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>{/if}
 
   {#if entries.length}
     <section
@@ -373,7 +292,7 @@
   />
 
   <div class="paper chord-paper" style="font-size:{stage ? Math.max(size, 1.8) : size}rem">
-    <ChordSheet text={song.chordpro ?? ""} transpose={shapeShift} {flats} active={activeChord} />
+    <ChordSheet text={song.chordpro ?? ""} transpose={shapeShift} {flats} />
   </div>
 
   <div class="float-dock no-print" class:phone role="toolbar" aria-label={t("chords.controls")}>
@@ -406,16 +325,6 @@
       </button>
       <span class="float-divider" aria-hidden="true"></span>
     {/if}
-    <ChordWait
-      bind:this={wait}
-      hideToggle={phone}
-      text={song.chordpro ?? ""}
-      transpose={shapeShift}
-      {flats}
-      capo={appliedCapo ?? undefined}
-      onactive={(key) => (activeChord = key)}
-    />
-    {#if !phone}<span class="float-divider" aria-hidden="true"></span>{/if}
     <div class="float-group">
       {#if !phone}
         <button
@@ -461,12 +370,11 @@
             onclick: () => (flats = !flats),
           },
           {
-            id: "wait",
-            label: wait?.isOn() ? t("chordWait.stop") : t("chordWait.start"),
-            icon: "hourglass",
-            active: wait?.isOn() ?? false,
-            testid: "chord-wait-menu",
-            onclick: () => wait?.toggleRun(),
+            id: "print",
+            label: t("chords.print"),
+            icon: "print",
+            testid: "export-print",
+            onclick: () => window.print(),
           },
           {
             id: "smaller",
@@ -513,12 +421,12 @@
           <span class="text-size" aria-hidden="true">A</span>
         </button>
       </div>
+      <span class="float-divider" aria-hidden="true"></span>
+      <button class="toggle" data-testid="export-print" onclick={() => window.print()}>
+        <Icon name="print" size={16} /><span class="float-label">{t("chords.print")}</span>
+      </button>
     {/if}
   </div>
-  <SetlistPicker
-    song={pickerOpen ? { id: song.id, title: song.title } : null}
-    onclose={() => (pickerOpen = false)}
-  />
 </div>
 
 <style>

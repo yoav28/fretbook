@@ -293,10 +293,10 @@
     "paused": "Paused"
   },
   "playerSheet": {
-    "expand": "Show more of the practice panel",
-    "shrink": "Show less of the practice panel",
-    "label": "Practice, audio, sync and view",
-    "practice": "Practice",
+    "expand": "Show more playback options",
+    "shrink": "Show fewer playback options",
+    "label": "Playback options",
+    "practice": "Loops",
     "audio": "Audio",
     "sync": "Sync",
     "view": "View",

@@ -2,7 +2,6 @@
   import ChordSheet from "./ChordSheet.svelte";
   import Icon from "./Icon.svelte";
   import MidiImport from "./MidiImport.svelte";
-  import TranscribeImport from "./TranscribeImport.svelte";
   import Sheet from "./Sheet.svelte";
   import TabPreview from "./TabPreview.svelte";
   import UniversalAdd, { type AddInput } from "./UniversalAdd.svelte";
@@ -16,7 +15,6 @@
     importDocument,
     importFile,
     importMidi,
-    importTranscribe,
     importUrl,
     inspectMidi,
     previewAsciiTab,
@@ -25,12 +23,10 @@
   } from "../lib/api";
   import { asciiTabBody, debounced, DEFAULT_GRID, type Grid } from "../lib/asciiTab";
   import { documentFromGuitarPro } from "../lib/alphatab/importScore";
-  import { isAudioFile } from "../lib/audioFile";
   import { isMidiFile, type MidiImportOptions } from "../lib/midiImport";
   import { isGuitarProFile } from "../lib/sniff";
   import { keyed, t, tOr } from "../lib/i18n.svelte";
   import { instrumentLabel } from "../lib/instruments";
-  import { rememberLessonSong, withLesson } from "../lib/lessonRun";
   import { navigate } from "../lib/router.svelte";
   import { tuningLabel } from "../lib/tuning";
   import type { MidiInspection } from "../lib/api-types";
@@ -64,7 +60,6 @@
   let sheetText = $state("");
   let picker = $state<ImportPreview | null>(null);
   let midi = $state<{ file: File; info: MidiInspection } | null>(null);
-  let audio = $state<File | null>(null);
   let previewUrl = $state("");
   let selected = $state<number[]>([]);
   let dragging = $state(false);
@@ -110,14 +105,9 @@
   function finish(path: string) {
     const songId = path.match(/^\/songs\/([^/]+)(?:\/edit)?$/)?.[1];
     if (songId) invalidateSong(songId);
-    const lesson = ui.addForLesson;
     void refreshSongs();
     closeSheet();
-    const target = lesson ? withLesson(path, lesson) : path;
-    if (lesson && target !== path) {
-      rememberLessonSong(ui.me?.user_id, lesson, path.slice("/songs/".length));
-    }
-    navigate(target);
+    navigate(path);
   }
 
   async function create() {
@@ -152,7 +142,6 @@
       sheetTitle = "";
       sheetArtist = "";
       sheetText = "";
-      ui.addForLesson = null;
       finish(`/songs/${song.id}`);
     } catch (err) {
       error = message(err);
@@ -357,12 +346,6 @@
       await openMidi(input.file);
       return;
     }
-    if ("file" in input && isAudioFile(input.file)) {
-      audio = input.file;
-      error = "";
-      notice = "";
-      return;
-    }
     // A Songsterr link may have several tracks; the link form asks which ones.
     if ("url" in input && songsterrUrl.test(input.url)) {
       mode = "link";
@@ -413,26 +396,6 @@
     }
   }
 
-  async function startTranscribe(options: {
-    stem: "mix" | "bass" | "guitar";
-    preset: string;
-    grid: number;
-  }) {
-    if (!audio) return;
-    error = "";
-    notice = "";
-    busy = t("transcribe.queued");
-    try {
-      const started = await importTranscribe(audio, options);
-      await runJob(started.job_id);
-      audio = null;
-    } catch (err) {
-      error = message(err);
-    } finally {
-      busy = "";
-    }
-  }
-
   function presetLabel(item: InstrumentPreset): string {
     return tOr(item.label_key, item.label);
   }
@@ -457,16 +420,7 @@
       </button>
     {/if}
     {#if mode === "any"}
-      {#if audio}
-        <TranscribeImport
-          file={audio}
-          presets={ui.presets}
-          defaultPreset={chosenPreset}
-          busy={Boolean(busy)}
-          onimport={(options) => void startTranscribe(options)}
-          oncancel={() => (audio = null)}
-        />
-      {:else if midi}
+      {#if midi}
         <MidiImport
           info={midi.info}
           presets={ui.presets}
@@ -521,22 +475,6 @@
                   const file = event.currentTarget.files?.[0];
                   event.currentTarget.value = "";
                   if (file) void openMidi(file);
-                }}
-              />
-            </label>
-            <label class="add-more-item">
-              <Icon name="sparkle" size={18} />
-              <span><strong>{t("add.audio")}</strong><small>{t("add.audioHint")}</small></span>
-              <input
-                class="visually-hidden"
-                data-testid="add-audio-input"
-                type="file"
-                accept="audio/*,.mp3,.wav,.flac,.ogg,.opus,.m4a,.aac"
-                disabled={Boolean(busy)}
-                onchange={(event) => {
-                  const file = event.currentTarget.files?.[0];
-                  event.currentTarget.value = "";
-                  if (file) audio = file;
                 }}
               />
             </label>

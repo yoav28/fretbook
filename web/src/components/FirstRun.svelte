@@ -1,35 +1,10 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
-  import { addDemo } from "../lib/api";
   import { t, tOr } from "../lib/i18n.svelte";
-  import { followLink, hrefFor } from "../lib/router.svelte";
-  import {
-    defaultFamily,
-    lessonsEnabled,
-    openSheet,
-    refreshSongs,
-    setDefaultInstrument,
-    ui,
-  } from "../lib/ui.svelte";
+  import { openSheet, setDefaultInstrument, ui } from "../lib/ui.svelte";
 
   // The welcome of an empty library: every way to get started on one screen.
-  let adding = $state(false);
   let error = $state("");
-
-  const course = $derived(defaultFamily() === "bass" ? "bass-first-steps" : "guitar-first-steps");
-
-  async function tryDemo() {
-    adding = true;
-    error = "";
-    try {
-      await addDemo();
-      await refreshSongs();
-    } catch (err) {
-      error = err instanceof Error ? err.message : t("error.generic");
-    } finally {
-      adding = false;
-    }
-  }
 
   async function chooseInstrument(id: string) {
     try {
@@ -56,15 +31,6 @@
         ><Icon name="plus" />{t("add.button")}</button
       >
     </li>
-    <li data-testid="first-run-demo">
-      <div>
-        <strong>{t("firstRun.demoTitle")}</strong>
-        <p class="muted">{t("firstRun.demoBody")}</p>
-      </div>
-      <button data-testid="first-run-add-demo" disabled={adding} onclick={() => void tryDemo()}
-        >{adding ? t("firstRun.demoAdding") : t("firstRun.demoButton")}</button
-      >
-    </li>
     <li data-testid="first-run-instrument">
       <div>
         <strong>{t("firstRun.instrumentTitle")}</strong>
@@ -80,26 +46,5 @@
         {/each}
       </select>
     </li>
-    <li data-testid="first-run-tuner">
-      <div>
-        <strong>{t("firstRun.tunerTitle")}</strong>
-        <p class="muted">{t("firstRun.tunerBody")}</p>
-      </div>
-      <button onclick={() => openSheet("tuner")}>{t("firstRun.tunerButton")}</button>
-    </li>
-    {#if lessonsEnabled(ui.me)}
-      <li data-testid="first-run-course">
-        <div>
-          <strong>{t("firstRun.courseTitle")}</strong>
-          <p class="muted">{t("firstRun.courseBody")}</p>
-        </div>
-        <a
-          class="button"
-          href={hrefFor(`/lessons/${course}`)}
-          onclick={(event) => followLink(event, `/lessons/${course}`)}
-          >{t("firstRun.courseButton")}</a
-        >
-      </li>
-    {/if}
   </ul>
 </div>

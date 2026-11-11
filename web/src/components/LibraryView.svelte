@@ -1,20 +1,16 @@
 <script lang="ts">
   import FirstRun from "./FirstRun.svelte";
   import Icon from "./Icon.svelte";
-  import LibrarySwitch from "./shell/LibrarySwitch.svelte";
-  import LibraryPicker from "./LibraryPicker.svelte";
   import ManageTagsSheet from "./ManageTagsSheet.svelte";
   import RecentImports from "./RecentImports.svelte";
-  import SetlistPicker from "./SetlistPicker.svelte";
   import FiltersPopover from "./library/FiltersPopover.svelte";
   import SongCard from "./library/SongCard.svelte";
   import Chip from "./ui/Chip.svelte";
   import Page from "./ui/Page.svelte";
   import PageHeader from "./ui/PageHeader.svelte";
-  import { addTags, deleteSong } from "../lib/api";
+  import { deleteSong } from "../lib/api";
   import { t } from "../lib/i18n.svelte";
-  import { keyLabel } from "../lib/keys";
-  import type { LibraryLevel, LibrarySort, SongSummary, SortOrder } from "../lib/types";
+  import type { LibrarySort, SongSummary, SortOrder } from "../lib/types";
   import {
     countFor,
     loadLibrary,
@@ -28,7 +24,7 @@
   } from "../lib/ui.svelte";
 
   let error = $state("");
-  let pickerSong = $state<{ id: string; title: string } | null>(null);
+  let managingTags = $state(false);
   let searchInput = $state<HTMLInputElement>();
   let searchSeen = ui.search.trim();
   let titleScrolled = $state(false);
@@ -70,29 +66,13 @@
     { sort: "added", order: "asc", key: "libraryToolbar.sort.addedAsc" },
     { sort: "opened", order: "desc", key: "libraryToolbar.sort.openedDesc" },
     { sort: "opened", order: "asc", key: "libraryToolbar.sort.openedAsc" },
-    { sort: "difficulty", order: "asc", key: "libraryToolbar.sort.difficultyAsc" },
-    { sort: "difficulty", order: "desc", key: "libraryToolbar.sort.difficultyDesc" },
   ];
-  const levelKeys: Record<Exclude<LibraryLevel, "all">, string> = {
-    easy: "difficulty.levelEasy",
-    medium: "difficulty.levelMedium",
-    hard: "difficulty.levelHard",
-  };
 
   // The server searches, filters, sorts and pages. Typing waits a moment; the other changes load at once.
   // App loads the first page; this only reacts to changes once it has.
   $effect(() => {
     const text = ui.search.trim();
-    void [
-      ui.filter,
-      ui.sort,
-      ui.order,
-      ui.tags,
-      ui.favouritesOnly,
-      ui.level,
-      ui.keyFilter,
-      ui.genreFilter,
-    ];
+    void [ui.filter, ui.sort, ui.order, ui.tags, ui.favouritesOnly];
     if (!ui.loaded) return;
     const delay = text === searchSeen ? 0 : 200;
     searchSeen = text;
@@ -134,37 +114,6 @@
     }
   }
 
-  let selecting = $state(false);
-  let selected = $state<string[]>([]);
-  let bulkTag = $state("");
-  let bulkNotice = $state("");
-  let managingTags = $state(false);
-
-  function toggleSelecting() {
-    selecting = !selecting;
-    selected = [];
-    bulkTag = "";
-    bulkNotice = "";
-  }
-
-  function toggleSelected(id: string) {
-    selected = selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id];
-  }
-
-  async function tagSelected() {
-    const tag = bulkTag.trim();
-    if (!tag || selected.length === 0) return;
-    try {
-      const count = await addTags(selected, [tag]);
-      bulkNotice = t("tags.bulkDone", { count, tag });
-      selected = [];
-      bulkTag = "";
-      await refreshSongs();
-    } catch (err) {
-      error = err instanceof Error ? err.message : t("error.generic");
-    }
-  }
-
   async function toggleStar(song: SongSummary) {
     try {
       await starSong(song.id, !song.favourite);
@@ -173,53 +122,17 @@
     }
   }
 
-  type ActiveFilter = { id: string; label: string; remove: () => void };
+  const paged = $derived(ui.nextCursor !== null && ui.nextCursor !== undefined);
 
-  // The filters inside the popover, shown as removable chips so they are never hidden state.
-  const activeFilters = $derived.by<ActiveFilter[]>(() => {
-    const list: ActiveFilter[] = [];
-    if (ui.level !== "all") {
-      const level = ui.level;
-      list.push({ id: "level", label: t(levelKeys[level]), remove: () => (ui.level = "all") });
-    }
-    if (ui.keyFilter) {
-      list.push({
-        id: "key",
-        label: `${t("metadata.filterKey")}: ${keyLabel(ui.keyFilter, t)}`,
-        remove: () => (ui.keyFilter = ""),
-      });
-    }
-    if (ui.genreFilter) {
-      list.push({
-        id: "genre",
-        label: `${t("metadata.filterGenre")}: ${ui.genreFilter}`,
-        remove: () => (ui.genreFilter = ""),
-      });
-    }
-    for (const tag of ui.tags) {
-      list.push({ id: `tag:${tag}`, label: tag, remove: () => toggleTagFilter(tag) });
-    }
-    return list;
-  });
-
-  function clearFilters() {
-    ui.level = "all";
-    ui.keyFilter = "";
-    ui.genreFilter = "";
+  function clearTags() {
     ui.tags = [];
   }
-
-  const paged = $derived(ui.nextCursor !== null && ui.nextCursor !== undefined);
 </script>
 
 <svelte:window onkeydown={onKeydown} onscroll={onScroll} />
 
 <Page width="wide">
   <section class="library">
-    <div class="library-bar">
-      <LibraryPicker />
-      <LibrarySwitch active="songs" />
-    </div>
     <div bind:this={headerElement} class="library-header-wrap">
       <PageHeader
         class="library-header"
@@ -264,20 +177,8 @@
               {/each}
             </select>
           </label>
-          <FiltersPopover
-            count={activeFilters.length}
-            onmanagetags={ui.demoMode ? undefined : () => (managingTags = true)}
-          />
           {#if !ui.demoMode}
-            <span class="select-toggle">
-              <Chip
-                variant="filter"
-                label={t("tags.select")}
-                testid="library-select"
-                pressed={selecting}
-                onclick={toggleSelecting}
-              />
-            </span>
+            <FiltersPopover count={ui.tags.length} onmanagetags={() => (managingTags = true)} />
           {/if}
         </div>
       </div>
@@ -306,70 +207,23 @@
         </div>
       </div>
 
-      {#if activeFilters.length}
-        <div class="active" role="group" aria-label={t("libraryToolbar.active")}>
-          {#each activeFilters as filter (filter.id)}
+      {#if ui.tags.length}
+        <div class="active-tags" role="group" aria-label={t("tags.filters")}>
+          {#each ui.tags as tag (tag)}
             <button
               type="button"
-              class="active-chip"
               data-testid="library-active-filter"
-              aria-label={t("libraryToolbar.remove", { filter: filter.label })}
-              onclick={filter.remove}
+              aria-label={t("libraryToolbar.remove", { filter: tag })}
+              onclick={() => toggleTagFilter(tag)}
             >
-              {filter.label}
-              <Icon name="close" size={14} />
+              {tag}<Icon name="close" size={14} />
             </button>
           {/each}
-          <button
-            type="button"
-            class="clear"
-            data-testid="library-clear-filters"
-            onclick={clearFilters}>{t("libraryToolbar.clear")}</button
+          <button type="button" data-testid="library-clear-filters" onclick={clearTags}
+            >{t("libraryToolbar.clear")}</button
           >
         </div>
       {/if}
-
-      {#if selecting}
-        <form
-          class="bulk-bar"
-          data-testid="library-bulk"
-          onsubmit={(event) => {
-            event.preventDefault();
-            void tagSelected();
-          }}
-        >
-          <span data-testid="library-selected"
-            >{t("tags.selected", { count: selected.length })}</span
-          >
-          <button
-            type="button"
-            data-testid="library-select-all"
-            onclick={() => (selected = ui.songs.map((song) => song.id))}
-            >{t("tags.selectAll")}</button
-          >
-          <input
-            type="text"
-            data-testid="library-bulk-tag"
-            list="library-tag-suggestions"
-            maxlength="40"
-            bind:value={bulkTag}
-            placeholder={t("tags.addPlaceholder")}
-            aria-label={t("tags.bulkAdd")}
-          />
-          <datalist id="library-tag-suggestions">
-            {#each ui.tagList as item (item.tag)}<option value={item.tag}></option>{/each}
-          </datalist>
-          <button
-            class="primary"
-            type="submit"
-            data-testid="library-bulk-apply"
-            disabled={!bulkTag.trim() || selected.length === 0}>{t("tags.bulkAdd")}</button
-          >
-        </form>
-      {/if}
-      {#if bulkNotice}<p class="muted" role="status" data-testid="library-bulk-notice">
-          {bulkNotice}
-        </p>{/if}
     {/if}
 
     {#if error}<p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>{/if}
@@ -401,12 +255,13 @@
             ? t("library.searchEmpty", { query: ui.search.trim() })
             : t("library.filterEmpty")}
         </p>
-        {#if activeFilters.length || ui.favouritesOnly}
+        {#if ui.tags.length || ui.favouritesOnly || ui.filter !== "all"}
           <button
             data-testid="library-clear-tags"
             onclick={() => {
-              clearFilters();
+              clearTags();
               ui.favouritesOnly = false;
+              ui.filter = "all";
             }}>{t("tags.clearFilters")}</button
           >
         {/if}
@@ -422,11 +277,7 @@
           <SongCard
             {song}
             readOnly={ui.demoMode}
-            {selecting}
-            selected={selected.includes(song.id)}
-            onselect={() => toggleSelected(song.id)}
             onstar={() => void toggleStar(song)}
-            onsetlist={() => (pickerSong = { id: song.id, title: song.title })}
             ondelete={() => void remove(song)}
           />
         {/each}
@@ -446,7 +297,6 @@
         {/if}
       </div>
     {/if}
-    <SetlistPicker song={pickerSong} onclose={() => (pickerSong = null)} />
   </section>
 </Page>
 
@@ -506,10 +356,6 @@
     text-overflow: ellipsis;
   }
 
-  .select-toggle {
-    margin-left: auto;
-  }
-
   /* Chip rows scroll sideways; the right edge fades out so a clipped chip reads as "more". */
   .chip-line {
     margin-bottom: var(--sp-4);
@@ -536,57 +382,37 @@
     display: none;
   }
 
-  .active {
+  .active-tags {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--sp-2);
-    margin-bottom: var(--sp-4);
+    margin: calc(-1 * var(--sp-2)) 0 var(--sp-4);
   }
 
-  .active-chip {
+  .active-tags button {
     display: inline-flex;
     align-items: center;
     gap: var(--sp-1);
-    min-height: 32px;
-    padding: 0 var(--sp-3);
+    min-height: 30px;
+    padding: 0 var(--sp-2);
     border: 1px solid var(--accent-ring);
     border-radius: var(--r-pill);
     background: var(--accent-soft);
     color: var(--accent-text);
-    font-size: var(--fs-sm);
+    font-size: var(--fs-xs);
   }
 
-  .clear {
-    min-height: 32px;
-    padding: 0 var(--sp-2);
-    border: 0;
+  .active-tags button:last-child {
+    border-color: transparent;
     background: transparent;
-    color: var(--accent-text);
-    font-size: var(--fs-sm);
     text-decoration: underline;
-  }
-
-  .bulk-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--sp-3);
-    margin: 0 0 var(--sp-5);
-    padding: var(--sp-3);
-    border: 1px solid var(--line);
-    border-radius: var(--r-md);
-  }
-
-  .bulk-bar input[type="text"] {
-    flex: 1 1 160px;
-    min-width: 0;
   }
 
   .song-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-    gap: var(--sp-5) var(--sp-4);
+    grid-template-columns: 1fr;
+    gap: 0;
   }
 
   .load-more {
@@ -620,25 +446,6 @@
   }
 
   @media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
-    /* The picker and the Songs|Setlists switch share a row, so a song shows on the first screen. */
-    .library-bar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: var(--sp-2);
-      margin-bottom: var(--sp-3);
-    }
-
-    .library-bar :global(.library-picker) {
-      flex: 1 1 12rem;
-      min-width: 0;
-    }
-
-    .library-bar :global(.library-switch) {
-      flex: none;
-      margin-bottom: 0;
-    }
-
     :global(header.page-header.library-header) {
       margin-bottom: var(--sp-3);
     }
@@ -687,10 +494,6 @@
       max-width: none;
     }
 
-    .select-toggle {
-      margin-left: 0;
-    }
-
     /* Songs become a list of rows. */
     .song-grid {
       grid-template-columns: 1fr;
@@ -703,10 +506,6 @@
   }
 
   @media (max-height: 500px) and (pointer: coarse) {
-    .library-bar {
-      margin-bottom: 0;
-    }
-
     :global(header.page-header.library-header) {
       margin-bottom: 0;
     }

@@ -1,16 +1,7 @@
 <script lang="ts">
-  import Icon from "./Icon.svelte";
-  import SegmentedControl from "./ui/SegmentedControl.svelte";
   import { t } from "../lib/i18n.svelte";
-  import {
-    defaultTrackMix,
-    trackMix,
-    type CountInBars,
-    type PracticeSettings,
-    type TrackMix,
-  } from "../lib/practice";
+  import { defaultTrackMix, trackMix, type PracticeSettings, type TrackMix } from "../lib/practice";
 
-  // Metronome, count-in and mixer. Edits `practice` in place and tells the player through `onchange`.
   let {
     practice,
     hasAudio,
@@ -29,9 +20,6 @@
     return `${percent(1 - balance)} / ${percent(balance)}`;
   }
 
-  const countOptions: CountInBars[] = [0, 1, 2];
-
-  // Rendering must not write state, so a track nobody touched is only created when it is edited.
   function edit(id: string, change: (mix: TrackMix) => void) {
     change((practice.mix.tracks[id] ??= defaultTrackMix()));
     onchange();
@@ -43,71 +31,6 @@
 </script>
 
 <div class="panel-group" data-testid="practice-panel">
-  <h3>{t("practice.metronome")}</h3>
-  <div class="mix-row">
-    <button
-      class="button"
-      data-testid="metronome-toggle"
-      aria-pressed={practice.metronome.on}
-      onclick={() => {
-        practice.metronome.on = !practice.metronome.on;
-        onchange();
-      }}><Icon name="metronome" size={16} />{t("practice.metronome")}</button
-    >
-    <label class="mix-slider">
-      <span>{t("practice.volume")}</span>
-      <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
-        value={practice.metronome.volume}
-        aria-label={t("practice.metronomeVolume")}
-        data-testid="metronome-volume"
-        oninput={(event) => {
-          practice.metronome.volume = Number(event.currentTarget.value);
-          onchange();
-        }}
-      />
-      <output>{percent(practice.metronome.volume)}</output>
-    </label>
-  </div>
-</div>
-
-<div class="panel-group">
-  <h3>{t("practice.countIn")}</h3>
-  <div class="mix-row">
-    <SegmentedControl
-      label={t("practice.countIn")}
-      value={String(practice.countIn.bars)}
-      onchange={(next) => {
-        practice.countIn.bars = Number(next) as CountInBars;
-        onchange();
-      }}
-      options={countOptions.map((bars) => ({
-        value: String(bars),
-        label: bars === 0 ? t("practice.countInOff") : t("practice.countInBars", { count: bars }),
-        testid: `count-in-${bars}`,
-      }))}
-    />
-    {#if hasAudio}
-      <label class="check">
-        <input
-          type="checkbox"
-          data-testid="count-in-loops"
-          checked={practice.countIn.beforeLoops}
-          onchange={(event) => {
-            practice.countIn.beforeLoops = event.currentTarget.checked;
-            onchange();
-          }}
-        />
-        {t("practice.countInLoops")}
-      </label>
-    {/if}
-  </div>
-</div>
-
-<div class="panel-group">
   <h3>{t("practice.mixer")}</h3>
   <label class="mix-slider">
     <span>{hasAudio ? t("practice.recording") : t("practice.synth")}</span>
@@ -160,18 +83,16 @@
         aria-pressed={mix.mute}
         aria-label={t("practice.muteTrack", { name: item.name })}
         data-testid={`mute-${item.id}`}
-        onclick={() => {
-          edit(item.id, (target) => (target.mute = !target.mute));
-        }}>{t("practice.mute")}</button
+        onclick={() => edit(item.id, (target) => (target.mute = !target.mute))}
+        >{t("practice.mute")}</button
       >
       <button
         class="button"
         aria-pressed={mix.solo}
         aria-label={t("practice.soloTrack", { name: item.name })}
         data-testid={`solo-${item.id}`}
-        onclick={() => {
-          edit(item.id, (target) => (target.solo = !target.solo));
-        }}>{t("practice.solo")}</button
+        onclick={() => edit(item.id, (target) => (target.solo = !target.solo))}
+        >{t("practice.solo")}</button
       >
       <input
         class="mix-track-volume"
@@ -181,10 +102,8 @@
         step="0.05"
         value={mix.volume}
         aria-label={t("practice.trackVolume", { name: item.name })}
-        oninput={(event) => {
-          const value = Number(event.currentTarget.value);
-          edit(item.id, (target) => (target.volume = value));
-        }}
+        oninput={(event) =>
+          edit(item.id, (target) => (target.volume = Number(event.currentTarget.value)))}
       />
     </div>
   {/each}

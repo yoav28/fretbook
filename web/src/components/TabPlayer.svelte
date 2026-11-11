@@ -14,29 +14,16 @@
   import SegmentedControl from "./ui/SegmentedControl.svelte";
   import Tooltip from "./ui/Tooltip.svelte";
   import { sectionMarks } from "../lib/playerSheet";
-  import SetlistPicker from "./SetlistPicker.svelte";
   import FullscreenToggle from "./FullscreenToggle.svelte";
   import { FULLSCREEN_ATTRIBUTE, fullscreenScale, layoutFocused } from "../lib/fullscreen";
   import AutoSyncSheet from "./AutoSyncSheet.svelte";
-  import TranscribeSheet from "./TranscribeSheet.svelte";
   import RetuneSheet from "./RetuneSheet.svelte";
-  import LessonRunBanner from "./LessonRunBanner.svelte";
-  import ScoreResults from "./ScoreResults.svelte";
   import ShortcutHelp from "./ShortcutHelp.svelte";
-  import {
-    ApiError,
-    getPracticeStats,
-    getSong,
-    patchSync,
-    recordPracticeSession,
-    uploadAudio,
-  } from "../lib/api";
-  import { holdCelebrations, onPracticeLogged, snapshotFromStats } from "../lib/celebrate";
+  import { ApiError, getSong, patchSync, uploadAudio } from "../lib/api";
   import { AudioMedia } from "../lib/alphatab/audioHandler";
   import { planFollow, SynthFollower } from "../lib/alphatab/synthFollow";
   import { hideScoreHeader, separateEffectBands } from "../lib/alphatab/display";
   import { preferredTrack, scoreToAlphaTex } from "../lib/alphatex";
-  import { Clicker } from "../lib/clicker";
   import { recordingGain, synthGain } from "../lib/practice";
   import { barTicks } from "../lib/durations";
   import {
@@ -56,74 +43,24 @@
     playedBarTicks,
     positionInBar,
   } from "../lib/fretboard";
-  import { gemKey, highwayStarts, timeAtBarPosition, type GemState } from "../lib/highway";
+  import { highwayStarts, timeAtBarPosition } from "../lib/highway";
   import { instrumentLabel } from "../lib/instruments";
-  import {
-    describeProblem,
-    ListenError,
-    startListening,
-    type ListenOptions,
-    type ListenSession,
-  } from "../lib/listen";
-  import { pitchClassName } from "../lib/listen/chordTones";
-  import {
-    getSavedA4,
-    getSavedChannel,
-    getSavedDevice,
-    getStoredCalibration,
-  } from "../lib/listen/devicePrefs";
-  import {
-    bleedSuspected,
-    buildScoredSteps,
-    sectionScores,
-    starsFor,
-    type NoteGrade,
-    type ScoreSummary,
-    type SectionScore,
-  } from "../lib/listen/scored";
-  import { colourScoreGrades } from "../lib/alphatab/gradeColors";
-  import { ScoredRun } from "../lib/listen/scoredRun";
-  import { buildWaitSteps, stepIndexAt, type WaitHeard, type WaitStep } from "../lib/listen/wait";
-  import { WaitRun } from "../lib/listen/waitRun";
-  import { waitFocus } from "../lib/listen/waitFretboard";
   import { followPlayed, playedBars } from "../lib/playback";
-  import { parseLessonParam } from "../lib/lessonRun";
   import { keepAwake } from "../lib/wakeLock";
-  import { IdleWatch, localDay, PracticeTimer, WAIT_IDLE_MS } from "../lib/practiceLog";
   import {
-    ClickScheduler,
-    calcNextSpeed,
     clamp01,
-    countInClicks,
     formatSpeedPercent,
     loadPractice,
-    nextCountIn,
     preservePitch,
     savePractice,
     trackMix,
-    updateLoopHighestSpeed,
     type SavedLoop,
   } from "../lib/practice";
-  import {
-    loadScores,
-    loopKey,
-    personalBest,
-    recordScore,
-    type ScoreRecord,
-  } from "../lib/scoreLog";
-  import { routePath } from "../lib/router.svelte";
   import { shortcutFor, stepRate, type ShortcutAction } from "../lib/shortcuts";
-  import {
-    barSeconds,
-    flatSyncPoints,
-    measureAt,
-    moveAnchor,
-    pointAnchors,
-    songStarts,
-  } from "../lib/sync";
-  import { midiToName, tuningLabel } from "../lib/tuning";
+  import { flatSyncPoints, measureAt, moveAnchor, pointAnchors, songStarts } from "../lib/sync";
+  import { tuningLabel } from "../lib/tuning";
   import type { SongDetail, TabSong } from "../lib/types";
-  import { lessonsEnabled, openTuner, setNotation, setPlayerView, ui } from "../lib/ui.svelte";
+  import { setNotation, setPlayerView, ui } from "../lib/ui.svelte";
 
   let {
     song: initial,
@@ -131,7 +68,6 @@
     shared = false,
     belowHeader,
   }: { song: TabSong; readOnly?: boolean; shared?: boolean; belowHeader?: Snippet } = $props();
-  let pickerOpen = $state(false);
 
   // The player owns its copy: taps, BPM edits, and uploads change it in place.
   let song = $state(untrack(() => initial));
@@ -141,14 +77,12 @@
   let scroller = $state<HTMLDivElement | null>(null);
   let audioEl = $state<HTMLAudioElement | null>(null);
   let pausedAudioSeek: { measure: number; position: number; seconds: number } | null = null;
-  let stemsActive = false;
   // For tests: whether the synth beside the recording is off, loading, ready or sounding.
   let synthState = $state<"off" | "loading" | "ready" | "playing">("off");
   let trackId = $state(untrack(() => song.preferred_track_id || preferredTrack(song.document).id));
   let scoreReady = $state(0);
   let retuneOpen = $state(false);
   let autoSyncOpen = $state(false);
-  let transcribeOpen = $state(false);
   let shiftMs = 0;
   const player: { api: alphaTab.AlphaTabApi | null } = { api: null };
   // With a recording, a second, hidden alphaTab player plays the score's tracks and follows the
@@ -158,39 +92,14 @@
     follower: SynthFollower | null;
     ready: boolean;
   } = { api: null, follower: null, ready: false };
-  const clicker = new Clicker();
-  // Time spent playing goes to the practice log, one session per stretch (see lib/practiceLog.ts).
-  const practiceTimer = new PracticeTimer({
-    onSession: (session, keepalive) => {
-      if (readOnly) return;
-      void recordPracticeSession(session, keepalive).then(() => {
-        onPracticeLogged(keepalive, routePath() === "/practice", () =>
-          getPracticeStats(localDay(new Date())).then(snapshotFromStats),
-        );
-      });
-    },
-  });
-  const scheduler = new ClickScheduler();
-  // Opened from a lesson (`?lesson=<course>/<lesson>`): scored and wait-mode results go to that lesson.
-  // Read once at mount: the address may be rewritten later. Shown only while Lessons is on, and `ui.me`
-  // may still be loading when the player mounts, so the check is reactive.
-  const lessonParam = typeof location === "undefined" ? null : parseLessonParam(location.search);
-  const lessonRef = $derived(lessonsEnabled(ui.me) ? lessonParam : null);
-  let lessonBanner = $state<LessonRunBanner>();
-
   let tapIndex = $state(0);
   let loopA = $state<number | null>(null);
   let loopB = $state<number | null>(null);
   let practice = $state(untrack(() => loadPractice(initial.id)));
   let activeLoopId = $state<string | null>(null);
-  let speedTrainerPercent = $state(untrack(() => practice.speedTrainer.startPercent));
-  let speedTrainerPass = $state(1);
-  let speedTrainerCompleted = $state(false);
-  let speedTrainerRunning = $state(false);
   let follow = $state(true);
   let rate = $state(1);
   let currentMeasure = $state(-1);
-  // Live height of the floating dock (it grows with the wait bar), so the fretboard and score clear it.
   let dockHeight = $state(0);
   // Ticks into the current played bar, for the fretboard.
   let currentPosition = $state(0);
@@ -199,9 +108,7 @@
   let clock = $state("0:00.0");
   let playing = $state(false);
   let muted = $state(false);
-  let countingIn = $state(false);
   let helpOpen = $state(false);
-  let countInTimer = 0;
   let saveLabel = $state("");
   let saveTimer = 0;
   let pendingSync: (() => Promise<void>) | null = null;
@@ -238,70 +145,9 @@
     outline.style.height = `${staff.h + 26}px`;
   }
 
-  // Wait mode: the synth plays and stops on each beat of the chosen track until it is played.
-  type WaitState = "idle" | "waiting" | "hit" | "done";
-  let waitOn = $state(false);
-  let waitState = $state<WaitState>("idle");
-  // Bumped when a step is played, so the count below follows the run.
-  let waitPlayedVersion = $state(0);
-  // Every note played in the run, passes of a loop included; `waitHits` below is what the dock shows.
-  let waitRunHits = $state(0);
-  // What was heard on the step being waited on that did not count, and the note after a hit.
-  let waitHeard = $state<WaitHeard | null>(null);
-  let waitSkipped = $state(false);
-  let waitNext = $state<WaitStep | null>(null);
-  let waitStep = $state<WaitStep | null>(null);
-  let waitHint = $state(false);
-  // The step just hit, kept for the 400 ms the fretboard shows it green.
-  let waitHitStep = $state<WaitStep | null>(null);
-  let waitError = $state("");
-  let waitBleed = $state(false);
-  let waitGrades = $state<Record<string, GemState>>({});
-  let waitRun: WaitRun | null = null;
-  // A recording cannot stop on every miss, so wait mode swaps the score player to the synth for
-  // the run and the recording stays silent; turning wait off remounts the recording player.
-  let waitSynth = $state(false);
-  let waitFlash = 0;
-  let waitStarting = false;
-  // The input chosen in the listen panel, shared by wait mode and the scored play-along.
-  const savedDevice = getSavedDevice();
-  let listenDevice = $state(savedDevice);
-  let listenChannel = $state(getSavedChannel(savedDevice));
-  let listenLevel = $state(0);
-  let listenSession = $state<ListenSession | null>(null);
-
-  function listenWithInput(options: ListenOptions): Promise<ListenSession> {
-    return startListening({
-      ...options,
-      a4: getSavedA4(),
-      deviceId: listenDevice || undefined,
-      channel: listenChannel,
-      onLevel: ({ peak }) => (listenLevel = peak),
-    });
-  }
-
-  // Scored play-along: the music keeps playing and every note of the chosen track is graded.
-  let scoreOn = $state(false);
-
-  // Nobody touches a phone on a music stand while they play, so keep its screen on meanwhile.
   $effect(() => {
-    if (playing || waitOn || scoreOn || handsFree.stage) return keepAwake();
+    if (playing || handsFree.stage) return keepAwake();
   });
-  let scoreSummary = $state<ScoreSummary | null>(null);
-  let scoreGrades = $state<Record<string, GemState>>({});
-  let scoreError = $state("");
-  let scoreBleed = $state(false);
-  let scoreCalibrated = $state(true);
-  let scoreResult = $state<{
-    summary: ScoreSummary;
-    sections: SectionScore[];
-    speed: number;
-    loop: { from: number; to: number } | null;
-    isBest: boolean;
-    best: ScoreRecord | null;
-  } | null>(null);
-  let scoreResultsOpen = $state(false);
-  let scoreRun: ScoredRun | null = null;
 
   const document_ = $derived(song.document);
   const track = $derived(
@@ -314,8 +160,7 @@
   const audioSrc = $derived(
     song.audio_url ? new URL(song.audio_url, document.baseURI).toString() : "",
   );
-  // The recording drives playback, except while wait mode borrows the synth.
-  const audioMode = $derived(song.has_audio && !waitSynth);
+  const audioMode = $derived(song.has_audio);
   // With audio, the <audio> clock and sync points set the pace, so a BPM edit must not rebuild the score.
   // Without audio, alphaTab's synth plays at the written tempo, so it does.
   const renderBpm = $derived(audioMode ? untrack(() => song.document.bpm) : document_.bpm);
@@ -325,29 +170,9 @@
   const synthTex = $derived(
     song.has_audio ? scoreToAlphaTex(document_, song.title, song.artist) : "",
   );
-  const synthWanted = $derived(song.has_audio && !waitSynth && synthGain(practice.mix) > 0);
+  const synthWanted = $derived(song.has_audio && synthGain(practice.mix) > 0);
   const trackIndex = $derived(Math.max(0, document_.tracks.indexOf(track)));
-  const waitSteps = $derived(buildWaitSteps(document_, track, { chords: practice.wait.chords }));
-  // In a loop the count is of the looped bars' notes, so it never runs past its total.
-  const waitInLoop = (step: WaitStep) =>
-    loopA == null || loopB == null || (step.bar >= loopA && step.bar <= loopB);
-  const waitTotal = $derived(waitSteps.filter(waitInLoop).length);
-  const waitHits = $derived.by(() => {
-    void waitPlayedVersion;
-    const run = waitRun;
-    if (!run) return 0;
-    let count = 0;
-    waitSteps.forEach((step, index) => {
-      if (waitInLoop(step) && run.wasPlayed(index)) count += 1;
-    });
-    return count;
-  });
-  const scoredSteps = $derived(buildScoredSteps(document_, track, song.has_audio));
   const fretEvents = $derived(practice.fretboard.on ? buildFretEvents(document_, track) : []);
-  // While wait mode is on, the fretboard shows the note being waited on instead of the playhead.
-  const waitMarks = $derived(
-    waitOn ? waitFocus(waitState === "hit" ? waitHitStep : waitStep, waitState, waitHint) : null,
-  );
   const fretFocus = $derived(focusAt(fretEvents, currentMeasure, currentPosition));
 
   function staveProfile(notation: boolean): alphaTab.StaveProfile {
@@ -455,8 +280,7 @@
     const plan = planFollow({
       target,
       synthAt: follower.position,
-      // Before the first bar (an intro, a count-in) the synth waits.
-      playing: !audioEl.paused && !countingIn && seconds >= (starts[0] ?? 0),
+      playing: !audioEl.paused && seconds >= (starts[0] ?? 0),
       rate: audioEl.playbackRate,
       synthBar: (written[bar + 1] ?? 0) - (written[bar] ?? 0),
       recordingBar: (starts[bar + 1] ?? 0) - (starts[bar] ?? 0),
@@ -669,21 +493,10 @@
         handleLoopTurnaround();
         return;
       }
-      if (waitRun && beat.voice.bar.staff.track.index === untrack(() => trackIndex)) {
-        const index = stepIndexAt(
-          untrack(() => waitSteps),
-          currentMeasure,
-          beat.displayStart,
-        );
-        if (index >= 0) waitRun.reach(index);
-      }
     });
-    // A click on the score moves alphaTab's cursor; wait mode follows it to the clicked beat.
     instance.beatMouseDown.on((beat) => {
       mouseDownBeat = beat;
       scoreSelectionDragged = false;
-      if (waitRun && beat.voice.bar.staff.track.index === untrack(() => trackIndex))
-        followWaitClick(beat.voice.bar.index, beat.displayStart);
     });
     instance.beatMouseMove.on((beat) => {
       if (mouseDownBeat && mouseDownBeat !== beat) scoreSelectionDragged = true;
@@ -696,28 +509,14 @@
       if (clickedBeat && !dragged) seekToBeat(instance, element, clickedBeat);
     });
     instance.playerFinished.on(() => {
-      if (scoreRun?.running) {
-        scoreRun.finish();
-        return;
-      }
       if (loopA != null && loopB != null && loopB >= barCount - 1 && playing) {
         handleLoopTurnaround();
-        return;
       }
-      if (!waitRun) return;
-      // Played through from the first note, not looped: it goes to the practice log and to the lesson.
-      if (waitRun.completed && (loopA == null || loopB == null)) {
-        practiceTimer.complete();
-        void lessonBanner?.report({ kind: "wait" });
-      }
-      waitState = "done";
-      waitStep = null;
-      waitRun.seek(0);
     });
     instance.playerPositionChanged.on((event) => {
       if (!useAudio) {
         clock = formatTime(event.currentTime / 1000);
-        if (untrack(() => waitState) !== "waiting") currentSeconds = event.currentTime / 1000;
+        currentSeconds = event.currentTime / 1000;
       }
     });
     instance.playerStateChanged.on((event) => {
@@ -764,18 +563,6 @@
     if (audioEl) preservePitch(audioEl);
   });
 
-  // The metronome click has to be re-planned whenever the clock jumps.
-  $effect(() => {
-    const element = audioEl;
-    if (!element) return;
-    const reset = () => scheduler.reset();
-    const events = ["seeking", "play", "pause", "ratechange"] as const;
-    for (const name of events) element.addEventListener(name, reset);
-    return () => {
-      for (const name of events) element.removeEventListener(name, reset);
-    };
-  });
-
   // Follow scrolls inside the score, so the score itself must sit clear of the
   // floating dock; its scroll-margin-bottom in app.css leaves room for the dock.
   $effect(() => {
@@ -792,65 +579,6 @@
       const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
       score.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
     });
-  });
-
-  // Stuck on one note with no input for a couple of minutes: stop counting until the player moves on.
-  let waitIdle = $state(false);
-  $effect(() => {
-    if (!waitOn || waitState !== "waiting") return;
-    void waitStep;
-    const watch = new IdleWatch(WAIT_IDLE_MS, () => (waitIdle = true));
-    watch.arm();
-    return () => {
-      watch.disarm();
-      waitIdle = false;
-    };
-  });
-
-  // In wait mode the synth stops on each note, so waiting for the player to play it still counts.
-  $effect(() => {
-    const loop = loopA != null && loopB != null;
-    const named = loop
-      ? practice.loops.find((l) => l.id === activeLoopId || (l.a === loopA && l.b === loopB))
-      : undefined;
-    practiceTimer.update(
-      playing || (waitOn && ((waitState === "waiting" && !waitIdle) || waitState === "hit")),
-      {
-        songId: song.id,
-        trackId,
-        loopName: named?.name ?? "",
-        loopStart: loop ? loopA : null,
-        loopEnd: loop ? loopB : null,
-        mode: scoreOn ? "scored" : waitOn ? "wait" : "free",
-        speed: rate,
-        // The latest pass's accuracy, as a percent with one decimal.
-        score:
-          scoreOn && scoreSummary && scoreSummary.graded > 0
-            ? Math.round(scoreSummary.accuracy * 1000) / 10
-            : null,
-      },
-    );
-  });
-
-  // A toast waits until playback stops and the score sheet is gone, so it never covers the result.
-  $effect(() => {
-    holdCelebrations(playing || scoreResultsOpen);
-    return () => holdCelebrations(false);
-  });
-
-  onMount(() => {
-    const leaving = () => practiceTimer.flush(true);
-    const hidden = () => {
-      if (document.visibilityState === "hidden") leaving();
-    };
-    window.addEventListener("pagehide", leaving);
-    document.addEventListener("visibilitychange", hidden);
-    return () => {
-      window.removeEventListener("pagehide", leaving);
-      document.removeEventListener("visibilitychange", hidden);
-      practiceTimer.flush();
-      practiceTimer.dispose();
-    };
   });
 
   onMount(() => {
@@ -903,15 +631,9 @@
       event.stopPropagation();
       perform(action);
     };
-    const metronome = window.setInterval(tickMetronome, 25);
     document.addEventListener("keydown", onKey, true);
     return () => {
       window.clearInterval(timer);
-      window.clearInterval(metronome);
-      window.clearTimeout(countInTimer);
-      clicker.close();
-      waitRun?.stop();
-      scoreRun?.stop();
       document.removeEventListener("keydown", onKey, true);
       // Leaving the page must not lose a tap that is still waiting to be saved.
       void flushSync();
@@ -928,12 +650,6 @@
         return step(1);
       case "tap":
         return tap();
-      case "metronome":
-        practice.metronome.on = !practice.metronome.on;
-        return practiceChanged();
-      case "countIn":
-        practice.countIn.bars = nextCountIn(practice.countIn.bars);
-        return practiceChanged();
       case "muteTrack":
       case "soloTrack": {
         const mix = (practice.mix.tracks[track.id] ??= trackMix(practice, track.id));
@@ -957,140 +673,54 @@
     }
   }
 
-  /** Pushes the mixer, metronome and volume settings to the synth or the recording, and remembers them. */
   function applyPractice() {
     savePractice(song.id, practice);
-    // While stems play, the recording stays silent and the stems carry the volume.
     if (audioEl) {
-      if (!stemsActive) audioEl.volume = recordingGain(practice.mix);
+      audioEl.volume = recordingGain(practice.mix);
       audioEl.muted = muted;
     }
-    // A recording is mixed with the synth in the hidden companion player, which has no metronome:
-    // the page's own clicks keep time there.
     const api = audioMode ? (companion.ready ? companion.api : null) : player.api;
     if (!api?.score) return;
-    if (!audioMode) {
-      api.metronomeVolume = !muted && practice.metronome.on ? practice.metronome.volume : 0;
-      api.masterVolume = muted || (waitOn && practice.wait.silent) ? 0 : practice.mix.synth;
-    } else {
-      api.masterVolume = muted ? 0 : synthGain(practice.mix);
-    }
+    api.metronomeVolume = 0;
+    api.masterVolume = muted ? 0 : audioMode ? synthGain(practice.mix) : practice.mix.synth;
     api.score.tracks.forEach((item, index) => {
       const id = document_.tracks[index]?.id;
       if (id === undefined) return;
       const mix = trackMix(practice, id);
       api.changeTrackVolume([item], mix.volume);
-      // In wait mode the player plays the chosen track, so it is left out of the backing.
-      api.changeTrackMute([item], mix.mute || ((waitOn || scoreOn) && index === trackIndex));
+      api.changeTrackMute([item], mix.mute);
       api.changeTrackSolo([item], mix.solo);
     });
   }
 
   function practiceChanged() {
     applyPractice();
-    if (practice.metronome.on) clicker.unlock();
   }
 
   function toggleMute() {
     muted = !muted;
     if (audioEl) audioEl.muted = muted;
     const api = audioMode ? (companion.ready ? companion.api : null) : player.api;
-    if (api?.score && !audioMode) {
-      api.metronomeVolume = !muted && practice.metronome.on ? practice.metronome.volume : 0;
-      api.masterVolume = muted || (waitOn && practice.wait.silent) ? 0 : practice.mix.synth;
-    } else if (api?.score) {
-      api.masterVolume = muted ? 0 : synthGain(practice.mix);
+    if (api?.score) {
+      api.metronomeVolume = 0;
+      api.masterVolume = muted ? 0 : audioMode ? synthGain(practice.mix) : practice.mix.synth;
     }
   }
 
-  /** Seconds one bar lasts on the wall clock, at the current speed. */
-  function barLength(index: number): number {
-    const starts = audioMode ? startsNow() : [];
-    const length =
-      starts.length > index + 1 ? starts[index + 1] - starts[index] : barSeconds(document_)[index];
-    return (length ?? 2) / rate;
-  }
-
-  /** Clicks the bars in, then calls `then`. Without a count-in it calls `then` at once. */
-  function runCountIn(index: number, then: () => void, overrideBars?: number) {
-    const bars = overrideBars ?? practice.countIn.bars;
-    if (bars <= 0 || countingIn) return then();
-    const bar = Math.min(Math.max(index, 0), Math.max(barCount - 1, 0));
-    const signature = document_.bars[bar]?.signature ?? [4, 4];
-    const plan = countInClicks(signature, barLength(bar), bars);
-    if (!muted) {
-      clicker.unlock();
-      const volume = Math.max(practice.metronome.volume, 0.3);
-      for (const click of plan.clicks) clicker.click(click.time, click.accent, volume);
-    }
-    countingIn = true;
-    countInTimer = window.setTimeout(() => {
-      countingIn = false;
-      then();
-    }, plan.duration * 1000);
-  }
-
-  function cancelCountIn() {
-    window.clearTimeout(countInTimer);
-    countingIn = false;
-  }
-
-  function tickMetronome() {
-    if (!audioMode || !audioEl || audioEl.paused || countingIn || muted || !practice.metronome.on)
-      return;
-    const starts = startsNow();
-    if (starts.length === 0) return;
-    for (const click of scheduler.due(
-      starts,
-      document_.bars,
-      audioEl.currentTime,
-      audioEl.playbackRate,
-      0.12,
-    ))
-      clicker.click(click.delay, click.accent, practice.metronome.volume);
-  }
-
-  // While wait mode waits on a note the Play button skips it.
-  const playButtonLabel = $derived(
-    waitOn && waitState === "waiting" && !countingIn
-      ? t("wait.skip")
-      : playing
-        ? t("player.pause")
-        : t("player.play"),
-  );
+  const playButtonLabel = $derived(playing ? t("player.pause") : t("player.play"));
 
   function toggle() {
     const api = player.api;
     if (!api) return;
-    if (countingIn) return cancelCountIn();
-    if (waitRun && waitState === "waiting") return waitRun.skip();
-
-    if (practice.speedTrainer.enabled && !playing) {
-      if (!speedTrainerRunning) {
-        speedTrainerPercent = practice.speedTrainer.startPercent;
-        speedTrainerPass = 1;
-        speedTrainerCompleted = false;
-        speedTrainerRunning = true;
-        setRate(speedTrainerPercent / 100);
-      }
-      if (loopA != null && (currentMeasure < loopA || (loopB != null && currentMeasure > loopB))) {
-        goToBar(loopA);
-      }
-    }
-
-    const countBars = practice.speedTrainer.enabled
-      ? Math.max(1, practice.countIn.bars)
-      : practice.countIn.bars;
-
     if (audioMode && audioEl) {
       if (audioEl.paused) {
         if (pausedAudioSeek) audioEl.currentTime = pausedAudioSeek.seconds;
-        runCountIn(currentMeasure, () => api.play(), countBars);
+        api.play();
       } else api.pause();
       return;
     }
     if (api.playerState === alphaTab.synth.PlayerState.Playing) api.pause();
-    else runCountIn(currentMeasure, () => api.play(), countBars);
+    else api.play();
   }
 
   function openAutoSync() {
@@ -1102,22 +732,6 @@
     commitAnchors(anchors);
     tapIndex = 0;
     autoSyncOpen = false;
-  }
-
-  function openTranscribe() {
-    if (playing) toggle();
-    transcribeOpen = true;
-  }
-
-  async function onTranscribeSuccess(newTrackId?: string) {
-    try {
-      song = (await getSong(song.id)) as TabSong;
-      if (newTrackId) {
-        trackId = newTrackId;
-      }
-    } catch (err) {
-      error = err instanceof ApiError ? err.message : message(err);
-    }
   }
 
   /**
@@ -1163,19 +777,11 @@
         : null;
       currentSeconds = targetTime;
       currentMeasure = index;
-      if (scoreRun) scoreRun.begin(scoreRange(index));
     } else if (player.api) {
       const tick = tickOfBar(index);
       player.api.tickPosition = tick;
       currentMeasure = index;
       currentSeconds = Math.max(0, highwayStarts(song.document, false)[index] ?? 0);
-      if (scoreRun) scoreRun.begin(scoreRange(index));
-      if (waitRun) {
-        waitRun.seek(tick);
-        waitStep = null;
-        waitNext = null;
-        if (waitState !== "idle") waitState = "idle";
-      }
     }
     revealCursor();
   }
@@ -1215,21 +821,7 @@
       );
       clock = formatTime(currentSeconds);
     }
-    if (scoreRun) scoreRun.begin(scoreRange(played));
     updatePlayingOutline(element, instance, beat);
-  }
-
-  /** The player clicked a beat of the score while wait mode is on: wait on it, or play on from it. */
-  function followWaitClick(written: number, position: number) {
-    if (!waitRun) return;
-    const played = followPlayed(order, written, currentMeasure);
-    if (played < 0) return;
-    currentMeasure = played;
-    currentPosition = position;
-    waitStep = null;
-    waitNext = null;
-    if (waitState !== "idle") waitState = "idle";
-    waitRun.reposition(tickOfBar(played) + position);
   }
 
   function tap() {
@@ -1379,414 +971,32 @@
     api.render();
   });
 
-  // Scored grades colour the notation too; redraws are batched because grades arrive note by note.
-  let gradeRedraw = 0;
-  $effect(() => {
-    const grades = scoreGrades;
-    const index = trackIndex;
-    if (!scoreReady) return;
-    untrack(() => {
-      const api = player.api;
-      const target = api?.score?.tracks[index];
-      if (!api || !target) return;
-      if (!colourScoreGrades(target, grades, playedBars(song.document.bars))) return;
-      window.clearTimeout(gradeRedraw);
-      gradeRedraw = window.setTimeout(() => player.api?.render(), 120);
-    });
-  });
-  $effect(() => () => window.clearTimeout(gradeRedraw));
-
   function clearLoop() {
     loopA = null;
     loopB = null;
     activeLoopId = null;
-    speedTrainerRunning = false;
-    speedTrainerCompleted = false;
   }
 
   function activateLoop(loop: SavedLoop) {
     loopA = loop.a;
     loopB = loop.b;
     activeLoopId = loop.id;
-    if (practice.speedTrainer.enabled) {
-      speedTrainerPercent = practice.speedTrainer.startPercent;
-      speedTrainerPass = 1;
-      speedTrainerCompleted = false;
-      speedTrainerRunning = false;
-      setRate(speedTrainerPercent / 100);
-    }
     goToBar(loop.a);
-  }
-
-  function recordCurrentLoopSpeed(speedRatio: number) {
-    if (loopA == null || loopB == null) return;
-    const matching = practice.loops.find(
-      (l) => l.id === activeLoopId || (l.a === loopA && l.b === loopB),
-    );
-    if (matching) {
-      const res = updateLoopHighestSpeed(practice.loops, matching.id, speedRatio);
-      if (res.updated) {
-        practice.loops = res.loops;
-        savePractice(song.id, practice);
-      }
-    }
   }
 
   function handleLoopTurnaround() {
     if (loopA == null || loopB == null) return;
-    // A scored pass covers the loop once: grade it and show the results instead of going round again.
-    if (scoreRun?.running) {
-      scoreRun.finish();
-      return;
-    }
-
-    if (practice.speedTrainer.enabled) {
-      const currentRatio = speedTrainerPercent / 100;
-      recordCurrentLoopSpeed(currentRatio);
-
-      if (speedTrainerPass < practice.speedTrainer.passesPerStep) {
-        speedTrainerPass += 1;
-      } else {
-        speedTrainerPass = 1;
-        const nextPct = calcNextSpeed(
-          speedTrainerPercent,
-          practice.speedTrainer.targetPercent,
-          practice.speedTrainer.stepPercent,
-        );
-        speedTrainerCompleted =
-          nextPct >= practice.speedTrainer.targetPercent &&
-          speedTrainerPercent >= practice.speedTrainer.targetPercent;
-        speedTrainerPercent = nextPct;
-        setRate(speedTrainerPercent / 100);
-        recordCurrentLoopSpeed(speedTrainerPercent / 100);
-      }
-    }
-
-    const needCountIn =
-      practice.speedTrainer.enabled || (practice.countIn.bars > 0 && practice.countIn.beforeLoops);
-    const countBars = practice.speedTrainer.enabled
-      ? Math.max(1, practice.countIn.bars)
-      : practice.countIn.bars;
-
     const targetBar = loopA;
-    scheduler.reset();
 
     if (audioMode && audioEl) {
-      const element = audioEl;
       const starts = startsNow();
       const targetTime = Math.max(0, starts[targetBar] ?? 0);
-      element.currentTime = targetTime;
+      audioEl.currentTime = targetTime;
       currentSeconds = targetTime;
       currentMeasure = targetBar;
-
-      if (needCountIn && !countingIn) {
-        element.pause();
-        runCountIn(
-          targetBar,
-          () => {
-            if (playing) void element.play();
-          },
-          countBars,
-        );
-      }
     } else {
       goToBar(targetBar);
-      if (needCountIn && !countingIn) {
-        player.api?.pause();
-        runCountIn(
-          targetBar,
-          () => {
-            if (playing && player.api) player.api.play();
-          },
-          countBars,
-        );
-      }
     }
-  }
-
-  async function startWait() {
-    if (!player.api || waitRun || waitStarting) return;
-    if (scoreRun) stopScore();
-    waitError = "";
-    waitBleed = false;
-    waitGrades = {};
-    const run = new WaitRun({
-      steps: waitSteps,
-      listen: listenWithInput,
-      match: {
-        anyOctave: practice.wait.anyOctave,
-        latencySeconds: (getStoredCalibration(listenDevice) ?? 0) / 1000,
-      },
-      hintSeconds: practice.wait.hintSeconds,
-      onWait: (step) => {
-        player.api?.pause();
-        window.clearTimeout(waitFlash);
-        waitStep = step;
-        waitHeard = null;
-        waitHitStep = null;
-        waitHint = false;
-        waitState = "waiting";
-        currentSeconds = timeAtBarPosition(
-          highwayStarts(song.document, false),
-          step.bar,
-          step.position,
-          playedBarTicks(song.document, step.bar),
-        );
-      },
-      onHeard: (heard) => (waitHeard = heard),
-      onHit: (step, index, wasHit) => {
-        waitPlayedVersion += 1;
-        waitRunHits = run.hits;
-        waitSkipped = !wasHit;
-        waitNext = waitSteps[index + 1] ?? null;
-        waitHeard = null;
-        waitGrades = {
-          ...waitGrades,
-          [gemKey(step.bar, step.position)]: wasHit ? "hit" : "missed",
-        };
-        waitHint = false;
-        waitHitStep = wasHit ? step : null;
-        waitStep = null;
-        waitState = "hit";
-        window.clearTimeout(waitFlash);
-        waitFlash = window.setTimeout(() => {
-          if (waitState === "hit") waitState = "idle";
-        }, 400);
-        player.api?.play();
-      },
-      onHint: () => (waitHint = true),
-      onBleed: () => (waitBleed = !practice.wait.silent),
-    });
-    waitStarting = true;
-    try {
-      await run.start();
-    } catch (err) {
-      waitStarting = false;
-      waitError = err instanceof ListenError ? describeProblem(err.problem) : message(err);
-      return;
-    }
-    if (song.has_audio) {
-      audioEl?.pause();
-      cancelCountIn();
-      waitSynth = true;
-      if (!(await synthPlayerReady())) {
-        waitSynth = false;
-        waitStarting = false;
-        run.stop();
-        waitError = t("wait.synthFailed");
-        return;
-      }
-    }
-    waitRun = run;
-    listenSession = run.listening;
-    waitOn = true;
-    waitPlayedVersion += 1;
-    waitRunHits = 0;
-    waitHeard = null;
-    waitNext = null;
-    waitState = "idle";
-    waitStarting = false;
-    const bar = currentMeasure;
-    if (song.has_audio && player.api && bar > 0) player.api.tickPosition = tickOfBar(bar);
-    waitRun.seek(bar > 0 ? tickOfBar(bar) : 0);
-    applyPractice();
-  }
-
-  /** After a remount, waits for the score player to have loaded its score. */
-  async function synthPlayerReady(): Promise<boolean> {
-    for (let waited = 0; waited < 15000; waited += 50) {
-      await new Promise((resolve) => window.setTimeout(resolve, 50));
-      if (player.api?.score && scoreReady > 0 && waitSynth) return true;
-    }
-    return false;
-  }
-
-  /** Ends wait mode; with a recording it also brings the recording player back at the same bar. */
-  function stopWait(): Promise<void> {
-    const bar = currentMeasure;
-    const restore = waitSynth;
-    endWait();
-    if (!restore) return Promise.resolve();
-    waitSynth = false;
-    return (async () => {
-      for (let waited = 0; waited < 15000; waited += 50) {
-        await new Promise((resolve) => window.setTimeout(resolve, 50));
-        if (player.api?.score && scoreReady > 0 && !waitSynth) break;
-      }
-      if (!waitSynth && bar >= 0) goToBar(bar);
-      applyPractice();
-    })();
-  }
-
-  function endWait() {
-    window.clearTimeout(waitFlash);
-    waitRun?.stop();
-    waitRun = null;
-    listenSession = null;
-    listenLevel = 0;
-    waitOn = false;
-    waitState = "idle";
-    waitStep = null;
-    waitHitStep = null;
-    waitHeard = null;
-    waitNext = null;
-    waitHint = false;
-    waitBleed = false;
-    waitGrades = {};
-    applyPractice();
-  }
-
-  // `currentSeconds` is only repainted every 50 ms (and per synth event), which would read every
-  // note a little early against a 100 ms hit window: scoring asks the clocks directly.
-  let clockStamp = 0;
-  $effect(() => {
-    void currentSeconds;
-    clockStamp = performance.now();
-  });
-
-  function songNow(): number {
-    if (audioMode && audioEl) return audioEl.currentTime;
-    return playing
-      ? currentSeconds + ((performance.now() - clockStamp) / 1000) * rate
-      : currentSeconds;
-  }
-
-  /** The part of the song a scored pass covers: the loop, or from `bar` to the end. */
-  function scoreRange(bar: number): { from: number; to: number } {
-    const starts = highwayStarts(song.document, song.has_audio);
-    if (loopA != null && loopB != null) {
-      return { from: starts[loopA] ?? 0, to: starts[loopB + 1] ?? starts[starts.length - 1] ?? 0 };
-    }
-    return { from: starts[Math.max(0, bar)] ?? 0, to: starts[starts.length - 1] ?? 0 };
-  }
-
-  async function startScore() {
-    if (!player.api || scoreRun) return;
-    if (waitRun) await stopWait();
-    scoreError = "";
-    scoreBleed = false;
-    scoreGrades = {};
-    // Round trip from the stored calibration for the chosen devices, else the default pair.
-    const latency = getStoredCalibration(listenDevice);
-    scoreCalibrated = latency !== null;
-    const run: ScoredRun = new ScoredRun({
-      steps: scoredSteps,
-      barCount,
-      listen: listenWithInput,
-      songTime: songNow,
-      rate: () => rate,
-      latencySeconds: (latency ?? 0) / 1000,
-      onGrades: (changed, grades, summary) => {
-        scoreSummary = summary;
-        if (changed.length === 0) {
-          scoreGrades = {};
-          return;
-        }
-        const next = { ...scoreGrades };
-        for (const index of changed) {
-          const grade = grades[index] as NoteGrade;
-          next[gemKey(scoredSteps[index].bar, scoredSteps[index].position)] = grade;
-        }
-        scoreGrades = next;
-      },
-      onAttacks: (attacks, restAttacks) => {
-        scoreBleed = song.has_audio && bleedSuspected(restAttacks, attacks);
-      },
-      onComplete: (summary) => {
-        player.api?.pause();
-        showScoreResult(summary, run.attacks > 0);
-      },
-    });
-    try {
-      await run.start(scoreRange(currentMeasure));
-    } catch (err) {
-      scoreError = err instanceof ListenError ? describeProblem(err.problem) : message(err);
-      return;
-    }
-    scoreRun = run;
-    scoreOn = true;
-    applyPractice();
-  }
-
-  function showScoreResult(summary: ScoreSummary, played: boolean) {
-    const loop = loopA != null && loopB != null ? { from: loopA, to: loopB } : null;
-    const speed = Math.round(rate * 100);
-    const key = loopKey(loop ? { a: loop.from, b: loop.to } : null);
-    let isBest = false;
-    let best = personalBest(loadScores(song.id), key, speed);
-    // A pass nobody played in (the microphone heard nothing) is shown, but not saved.
-    if (played && summary.graded > 0) {
-      const saved = recordScore(song.id, {
-        at: Date.now(),
-        accuracy: summary.accuracy,
-        stars: starsFor(summary.accuracy, summary.graded),
-        hits: summary.counts.hit,
-        total: summary.total,
-        extras: summary.extras,
-        bestStreak: summary.bestStreak,
-        loop: key,
-        speed,
-      });
-      isBest = saved.isBest;
-      best = saved.isBest ? saved.previous : best;
-    }
-    scoreResult = {
-      summary,
-      sections: sectionScores(document_, summary.bars),
-      speed,
-      loop,
-      isBest,
-      best,
-    };
-    scoreResultsOpen = true;
-    if (played && summary.graded > 0) {
-      void lessonBanner?.report({
-        kind: "scored",
-        accuracy: summary.accuracy * 100,
-        songBpm: song.document.bpm,
-        rate,
-        wholeSong: !loop && summary.total >= scoredSteps.length,
-      });
-    }
-  }
-
-  function stopScore() {
-    scoreRun?.stop();
-    scoreRun = null;
-    scoreOn = false;
-    scoreSummary = null;
-    scoreGrades = {};
-    scoreBleed = false;
-    scoreResultsOpen = false;
-    applyPractice();
-  }
-
-  function toggleScore() {
-    if (scoreOn) stopScore();
-    else void startScore();
-  }
-
-  function chooseFree() {
-    if (waitOn) stopWait();
-    if (scoreOn) stopScore();
-  }
-
-  function playScoreAgain() {
-    scoreResultsOpen = false;
-    goToBar(loopA ?? 0);
-  }
-
-  function practiseSection(from: number, to: number) {
-    scoreResultsOpen = false;
-    activeLoopId = null;
-    loopA = from;
-    loopB = to;
-    goToBar(from);
-  }
-
-  function toggleWait() {
-    if (waitOn) stopWait();
-    else void startWait();
   }
 
   /** alphaTab's ticks run through the expanded song, so sum the bars as played. */
@@ -1796,16 +1006,6 @@
       tick += barTicks(song.document.bars[order[cursor]].signature);
     return tick;
   }
-
-  // Changing track or adding a recording ends wait mode: its steps belong to the old track.
-  $effect(() => {
-    void trackId;
-    void song.has_audio;
-    untrack(() => {
-      if (waitRun) stopWait();
-      if (scoreRun) stopScore();
-    });
-  });
 
   // Retarget scrolling when the layout crosses the phone breakpoint, without rebuilding
   // the player. On a phone the page scrolls only while playback is following.
@@ -1862,7 +1062,6 @@
 
   function setRate(value: number) {
     rate = value;
-    scheduler.reset();
     if (audioEl) audioEl.playbackRate = value;
     if (player.api) player.api.playbackSpeed = value;
   }
@@ -1880,7 +1079,6 @@
     song = (await getSong(song.id)) as TabSong;
   }
 
-  let exporting = $state(false);
   let panelOpen = $state(false);
   // A phone's sheet has two heights; the grabber toggles them.
   let sheetTall = $state(false);
@@ -1936,31 +1134,6 @@
     };
   });
 
-  function exportUrl(kind: string): string {
-    return new URL(`api/songs/${song.id}/export.${kind}`, document.baseURI).toString();
-  }
-
-  async function exportPdf() {
-    exporting = true;
-    error = "";
-    const current = track;
-    try {
-      const { downloadTrackPdf } = await import("../lib/export/pdf");
-      await downloadTrackPdf({
-        document: song.document,
-        trackId: current.id,
-        title: song.title,
-        artist: song.artist,
-        capoLabel: current.capo > 0 ? t("player.capo", { fret: current.capo }) : "",
-        notation: ui.notation,
-      });
-    } catch {
-      error = t("player.exportPdfFailed");
-    } finally {
-      exporting = false;
-    }
-  }
-
   // Stage mode also hides the app's top bar (app.css), which sits outside this component.
   $effect(() => {
     if (!handsFree.stage) return;
@@ -1977,7 +1150,7 @@
 <div
   class="song-page player-page"
   class:stage={handsFree.stage}
-  class:has-fretboard={practice.fretboard.on || waitOn}
+  class:has-fretboard={practice.fretboard.on}
   style:--dock-live={dockHeight > 0 ? `calc(${dockHeight + 14}px + var(--safe-b))` : undefined}
 >
   {#if handsFree.stage && !fullscreenToggle?.isOn()}
@@ -1996,11 +1169,9 @@
       <Icon name="close" size={18} />
     </button>
   {/if}
-  {#if lessonRef}<LessonRunBanner bind:this={lessonBanner} lesson={lessonRef} />{/if}
   <SongHeader
     {song}
-    {readOnly}
-    {shared}
+    readOnly={readOnly || shared}
     {belowHeader}
     eyebrow={instrumentLabel(track.instrument)}
     strings={track.tuning_midi.length}
@@ -2023,43 +1194,6 @@
       ...(song.has_audio ? [{ label: t("library.audio"), accent: true, icon: "waveform" }] : []),
     ]}
     onretune={() => (retuneOpen = true)}
-    ontuner={() => openTuner({ tuning: track.tuning_midi, capo: track.capo })}
-    onsetlist={() => (pickerOpen = true)}
-    exportItems={[
-      {
-        id: "pdf",
-        label: exporting
-          ? t("player.exportingPdf")
-          : song.document.tracks.length > 1
-            ? t("player.exportPdfTrack", { name: track.name })
-            : t("player.exportPdf"),
-        icon: "file",
-        testid: "export-pdf",
-        disabled: exporting,
-        onclick: () => void exportPdf(),
-      },
-      {
-        id: "musicxml",
-        label: t("player.exportMusicXml"),
-        icon: "layers",
-        testid: "export-musicxml",
-        href: exportUrl("musicxml"),
-      },
-      {
-        id: "midi",
-        label: t("player.exportMidi"),
-        icon: "download",
-        testid: "export-midi",
-        href: exportUrl("mid"),
-      },
-      {
-        id: "json",
-        label: t("player.exportJson"),
-        icon: "download",
-        testid: "export-json",
-        href: exportUrl("json"),
-      },
-    ]}
   >
     {#snippet afterFacts()}
       {#if practice.loops.length > 0}
@@ -2089,11 +1223,6 @@
                 <span class="loop-range"
                   >{t("player.loopRange", { a: loop.a + 1, b: loop.b + 1 })}</span
                 >
-                {#if loop.highestSpeed != null}
-                  <span class="loop-speed" data-testid={`song-page-loop-speed-${loop.id}`}>
-                    {formatSpeedPercent(loop.highestSpeed)}
-                  </span>
-                {/if}
               </button>
             {/each}
           </div>
@@ -2177,10 +1306,6 @@
               {rate}
               {loopA}
               {loopB}
-              grades={scoreOn ? scoreGrades : waitOn ? waitGrades : undefined}
-              waitingAt={waitOn && waitState === "waiting" && waitStep
-                ? { bar: waitStep.bar, position: waitStep.position }
-                : null}
               onseek={goToBar}
             />
           </div>
@@ -2191,7 +1316,6 @@
           class="paper score"
           data-testid="player-score"
           data-hidden={ui.playerView === "highway" ? "true" : undefined}
-          data-wait={waitOn ? waitState : undefined}
           bind:this={scroller}
           role="region"
           aria-label={t("player.score")}
@@ -2221,9 +1345,6 @@
           demo={ui.demoMode}
           tracks={song.document.tracks}
           audioUrl={audioSrc}
-          {audioEl}
-          {muted}
-          canTranscribe={ui.workerKinds.includes("audio.transcribe")}
           anchorCount={Object.keys(song.document.sync.anchors).length}
           publishedSync={song.document.sync.points.some((point) => point != null)}
           pendingSync={Boolean(song.document.sync.points.length || song.document.sync.video_id)}
@@ -2233,38 +1354,11 @@
           {loopA}
           {loopB}
           {activeLoopId}
-          {speedTrainerRunning}
-          {speedTrainerPercent}
-          {speedTrainerPass}
-          {speedTrainerCompleted}
           {rate}
-          {waitOn}
-          waitAvailable={true}
-          waitUsesSynth={song.has_audio}
-          {waitError}
-          {scoreOn}
-          {scoreSummary}
-          {scoreBleed}
-          {scoreCalibrated}
-          {scoreError}
-          {listenSession}
-          {listenDevice}
-          {listenChannel}
-          {listenLevel}
           notation={ui.notation}
           stage={handsFree.stage}
           onclose={closeSheet}
           onpractice={practiceChanged}
-          onfree={chooseFree}
-          onwait={toggleWait}
-          onscore={toggleScore}
-          onwaitoptions={() => {
-            applyPractice();
-            if (waitOn) {
-              stopWait();
-              void startWait();
-            }
-          }}
           onloop={setLoop}
           onclearloop={clearLoop}
           onjump={activateLoop}
@@ -2275,41 +1369,28 @@
           onrestore={() => commitAnchors(pointAnchors(song.document.sync, barCount))}
           onclearall={() => commitAnchors({})}
           onautosync={openAutoSync}
-          ontranscribe={openTranscribe}
           onbpm={(next) => commitAnchors({ ...song.document.sync.anchors }, next)}
           onupload={(file) => void onUpload(file)}
           onyoutube={() => void onYouTubeAudio()}
-          onstems={(active) => {
-            stemsActive = active;
-            if (!active) applyPractice();
-          }}
           onnotation={toggleNotation}
           onstage={(on) => {
             trackScroll();
             if (on) panelOpen = false;
             setStage(on);
           }}
-          onlistenDevice={(next) => (listenDevice = next)}
-          onlistenChannel={(next) => (listenChannel = next)}
         />
       </div>
     {/if}
   </div>
 
-  {#if practice.fretboard.on || waitOn}
-    <div
-      class="fretboard-wrap"
-      data-testid="player-fretboard"
-      role={waitOn ? "group" : undefined}
-      aria-label={waitOn ? t("waitMode.fretboard") : undefined}
-    >
+  {#if practice.fretboard.on}
+    <div class="fretboard-wrap" data-testid="player-fretboard">
       <Fretboard
         tuning={track.tuning_midi}
         capo={track.capo}
         frets={fretCount(track)}
-        current={waitOn ? (waitMarks?.notes ?? []) : fretFocus.current}
-        next={waitOn ? [] : fretFocus.next}
-        tone={waitMarks?.tone}
+        current={fretFocus.current}
+        next={fretFocus.next}
         label={practice.fretboard.label}
         root={practice.fretboard.root ?? defaultRoot(track.tuning_midi)}
         leftHanded={practice.fretboard.leftHanded}
@@ -2318,79 +1399,10 @@
   {/if}
 
   <p class="visually-hidden" role="status" data-testid="player-announcer">
-    {countingIn ? t("player.countingIn") : playing ? t("player.playing") : t("player.paused")}
+    {playing ? t("player.playing") : t("player.paused")}
   </p>
 
   <div class="dock" class:sheet-open={panelOpen && !handsFree.stage} bind:offsetHeight={dockHeight}>
-    {#if waitOn}
-      <div
-        class="wait-status"
-        data-testid="wait-status"
-        data-state={waitState}
-        data-hits={waitRunHits}
-        data-total={waitTotal}
-        role="status"
-      >
-        <Icon name="hourglass" size={16} />
-        <span class="wait-note">
-          {#if waitState === "waiting" && waitStep}
-            {#if waitStep.kind === "dead"}
-              {t("wait.playDead")}
-            {:else if waitStep.kind === "chord"}
-              {t("chordWait.playChord", {
-                notes: (waitStep.pcs ?? []).map((pc) => pitchClassName(pc)).join(" "),
-              })}
-            {:else}
-              {t("wait.playNow", { note: midiToName(waitStep.midis[0]) })}
-            {/if}
-          {:else if waitState === "hit"}
-            {waitSkipped ? t("wait.skipped") : t("wait.hit")}
-          {:else if waitState === "done"}
-            {t("wait.done", { hits: waitHits, total: waitTotal })}
-          {:else if waitNext}
-            {t("wait.next", {
-              note:
-                waitNext.kind === "dead"
-                  ? t("wait.mutedNote")
-                  : waitNext.kind === "chord"
-                    ? (waitNext.pcs ?? []).map((pc) => pitchClassName(pc)).join(" ")
-                    : midiToName(waitNext.midis[0]),
-            })}
-          {:else}
-            {t("wait.listening")}
-          {/if}
-        </span>
-        {#if waitState === "waiting" && waitStep && waitHeard}
-          <span class="pill" data-testid="wait-heard" data-kind={waitHeard.kind}
-            >{waitHeard.kind === "early"
-              ? t("wait.heardEarly")
-              : waitHeard.kind === "none"
-                ? t("wait.heardNothing")
-                : waitHeard.midi === undefined
-                  ? t("wait.heardOther")
-                  : waitHeard.kind === "wrong"
-                    ? t("wait.heardNote", { note: midiToName(waitHeard.midi) })
-                    : t(waitHeard.kind === "flat" ? "wait.heardFlat" : "wait.heardSharp", {
-                        note: midiToName(waitHeard.midi),
-                      })}</span
-          >
-        {/if}
-        {#if waitHint && waitStep}
-          <span class="pill pill-accent" data-testid="wait-hint"
-            >{t("wait.hint", { string: waitStep.string + 1, fret: waitStep.fret })}</span
-          >
-        {/if}
-        {#if waitBleed}
-          <span class="pill" role="alert" data-testid="wait-bleed">{t("wait.bleed")}</span>
-        {/if}
-        <span class="muted small">{t("wait.progress", { hits: waitHits, total: waitTotal })}</span>
-        {#if waitState === "waiting"}
-          <button class="button" data-testid="wait-skip" onclick={() => waitRun?.skip()}
-            >{t("wait.skip")}</button
-          >
-        {/if}
-      </div>
-    {/if}
     <div class="dock-bar">
       <div class="dock-transport">
         <IconButton
@@ -2407,7 +1419,6 @@
               class="play-button"
               data-testid="player-play"
               data-playing={playing}
-              data-counting={countingIn}
               onclick={toggle}
               aria-label={playButtonLabel}
               aria-describedby={describedBy || undefined}
@@ -2497,10 +1508,9 @@
         {/if}
         {#if !handsFree.stage}
           <DockTextButton
-            icon="target"
-            label={t("playerSheet.practice")}
+            icon="sliders"
+            label={t("playerSheet.label")}
             testid="player-panel-toggle"
-            pressed={waitOn || scoreOn}
             expanded={panelOpen}
             controls={panelOpen ? "player-sheet" : undefined}
             onclick={() => (panelOpen = !panelOpen)}
@@ -2587,29 +1597,7 @@
       onclose={() => (autoSyncOpen = false)}
       onaccept={acceptAutoSync}
     />
-    <TranscribeSheet
-      open={transcribeOpen}
-      songId={song.id}
-      onclose={() => (transcribeOpen = false)}
-      onsuccess={onTranscribeSuccess}
-    />
   {/if}
-  <ScoreResults
-    open={scoreResultsOpen}
-    summary={scoreResult?.summary ?? null}
-    sections={scoreResult?.sections ?? []}
-    speed={scoreResult?.speed ?? 100}
-    loop={scoreResult?.loop ?? null}
-    isBest={scoreResult?.isBest ?? false}
-    best={scoreResult?.best ?? null}
-    onclose={() => (scoreResultsOpen = false)}
-    onagain={playScoreAgain}
-    onpractise={practiseSection}
-  />
-  <SetlistPicker
-    song={pickerOpen ? { id: song.id, title: song.title } : null}
-    onclose={() => (pickerOpen = false)}
-  />
 </div>
 
 <style>

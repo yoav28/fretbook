@@ -8,8 +8,6 @@ export type ShortcutAction =
   | "previousBar"
   | "nextBar"
   | "tap"
-  | "metronome"
-  | "countIn"
   | "muteTrack"
   | "soloTrack"
   | "volumeDown"
@@ -33,8 +31,6 @@ export const SHORTCUTS: Shortcut[] = [
   { action: "previousBar", keys: ["ArrowLeft"], label: "←", labelKey: "shortcuts.previousBar" },
   { action: "nextBar", keys: ["ArrowRight"], label: "→", labelKey: "shortcuts.nextBar" },
   { action: "tap", keys: ["t", "T"], label: "T", labelKey: "shortcuts.tap" },
-  { action: "metronome", keys: ["m", "M"], label: "M", labelKey: "shortcuts.metronome" },
-  { action: "countIn", keys: ["c", "C"], label: "C", labelKey: "shortcuts.countIn" },
   { action: "muteTrack", keys: ["x", "X"], label: "X", labelKey: "shortcuts.muteTrack" },
   { action: "soloTrack", keys: ["s", "S"], label: "S", labelKey: "shortcuts.soloTrack" },
   { action: "volumeDown", keys: ["-", "_"], label: "−", labelKey: "shortcuts.volumeDown" },
