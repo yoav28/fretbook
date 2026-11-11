@@ -120,14 +120,14 @@ export interface HighwayVisibleWindow {
 
 /** Distinct per-string colours (highest string 0 first, up to 8 strings). */
 export const STRING_COLORS: readonly string[] = [
-  "#b56bff", // String 1 (high e / G): violet
-  "#47c97e", // String 2 (B / D): emerald
-  "#ff9240", // String 3 (G / A): orange
-  "#3ea8ff", // String 4 (D / E): sky blue
-  "#ffd147", // String 5 (A / B): gold
-  "#ff5470", // String 6 (Low E): crimson
-  "#2dd4bf", // String 7: teal
-  "#f472b6", // String 8: rose
+  "#a995f5",
+  "#55c7a5",
+  "#e6a56f",
+  "#72a9e8",
+  "#d4bd72",
+  "#de7f8f",
+  "#58bcb5",
+  "#c17daa",
 ];
 
 export function stringColor(stringIndex: number): string {
@@ -762,38 +762,38 @@ function stateColors(
   switch (state) {
     case "hit":
       return {
-        fill: "#22b573",
-        border: "#8ef5c4",
-        tail: "rgba(46, 213, 140, 0.55)",
+        fill: "#30a86a",
+        border: "#9be0b6",
+        tail: "rgba(48, 209, 88, 0.36)",
         text: "#ffffff",
       };
     case "missed":
       return {
-        fill: "#b83b48",
-        border: "#ff8a95",
-        tail: "rgba(224, 82, 96, 0.35)",
+        fill: "#a9464b",
+        border: "#e6a0a3",
+        tail: "rgba(255, 69, 58, 0.28)",
         text: "rgba(255, 255, 255, 0.85)",
       };
     case "wrong":
       return {
-        fill: "#8a4bd6",
-        border: "#d2b0ff",
-        tail: "rgba(160, 100, 235, 0.4)",
+        fill: "#7657b7",
+        border: "#bea8ef",
+        tail: "rgba(118, 87, 183, 0.32)",
         text: "#ffffff",
       };
     case "waiting":
       return {
-        fill: "#ff7a50",
-        border: "#ffe082",
-        tail: "rgba(255, 122, 80, 0.6)",
+        fill: "#347dc5",
+        border: "#a8d0ff",
+        tail: "rgba(0, 113, 227, 0.42)",
         text: "#ffffff",
       };
     case "early":
     case "late":
       return {
-        fill: "#d99426",
-        border: "#ffe08a",
-        tail: "rgba(255, 198, 92, 0.5)",
+        fill: "#b27b1d",
+        border: "#efd08a",
+        tail: "rgba(255, 159, 10, 0.35)",
         text: "#ffffff",
       };
     default:
@@ -831,11 +831,11 @@ export function drawHighway(ctx: HighwayCanvasContext, options: DrawHighwayOptio
   ctx.clearRect(0, 0, layout.width, layout.height);
 
   // 1. Stage background & top rail.
-  ctx.fillStyle = "#121018";
+  ctx.fillStyle = "#1c1c1e";
   ctx.fillRect(0, 0, layout.width, layout.height);
-  ctx.fillStyle = "#191622";
+  ctx.fillStyle = "#242426";
   ctx.fillRect(0, 0, layout.width, layout.headerHeight);
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.09)";
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(0, layout.headerHeight);
@@ -851,7 +851,7 @@ export function drawHighway(ctx: HighwayCanvasContext, options: DrawHighwayOptio
       const left = Math.max(0, barX);
       const right = Math.min(layout.width, barEndX);
       if (right > left) {
-        ctx.fillStyle = "rgba(255, 122, 80, 0.08)";
+        ctx.fillStyle = "rgba(0, 113, 227, 0.11)";
         ctx.fillRect(left, layout.headerHeight, right - left, layout.height - layout.headerHeight);
       }
     }
@@ -860,7 +860,7 @@ export function drawHighway(ctx: HighwayCanvasContext, options: DrawHighwayOptio
       const bx = timeToX(layout, beat.time, currentTime);
       if (bx < 0 || bx > layout.width) continue;
       ctx.beginPath();
-      ctx.strokeStyle = beat.isDownbeat ? "rgba(255, 255, 255, 0.22)" : "rgba(255, 255, 255, 0.06)";
+      ctx.strokeStyle = beat.isDownbeat ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 0.07)";
       ctx.lineWidth = beat.isDownbeat ? 1.5 : 1;
       ctx.moveTo(bx, beat.isDownbeat ? layout.headerHeight : layout.topY - 8);
       ctx.lineTo(bx, layout.bottomY + 8);
@@ -869,7 +869,7 @@ export function drawHighway(ctx: HighwayCanvasContext, options: DrawHighwayOptio
 
     // Bar number in header rail.
     if (barX >= 48 && barX <= layout.width - 16) {
-      ctx.fillStyle = "rgba(244, 241, 236, 0.55)";
+      ctx.fillStyle = "#a1a1a6";
       ctx.font = "600 11px 'JetBrains Mono', monospace";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
@@ -882,13 +882,13 @@ export function drawHighway(ctx: HighwayCanvasContext, options: DrawHighwayOptio
       const badgeW = Math.max(44, label.length * 7 + 16);
       const badgeX = barX + 24;
       const badgeY = 6;
-      ctx.fillStyle = "rgba(255, 122, 80, 0.22)";
-      ctx.strokeStyle = "rgba(255, 122, 80, 0.65)";
+      ctx.fillStyle = "rgba(0, 113, 227, 0.16)";
+      ctx.strokeStyle = "rgba(100, 165, 255, 0.36)";
       ctx.lineWidth = 1;
       drawRoundedRect(ctx, badgeX, badgeY, badgeW, 22, 11);
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = "#ff9b78";
+      ctx.fillStyle = "#a9cbff";
       ctx.font = "600 11px 'Inter', system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -905,8 +905,8 @@ export function drawHighway(ctx: HighwayCanvasContext, options: DrawHighwayOptio
     const blockW = 42;
     const blockH = Math.max(36, bottomY - topY);
 
-    ctx.fillStyle = "rgba(255, 255, 255, 0.06)";
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.035)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
     ctx.lineWidth = 1.25;
     drawRoundedRect(ctx, cx - blockW / 2, topY, blockW, blockH, 10);
     ctx.fill();
@@ -916,14 +916,14 @@ export function drawHighway(ctx: HighwayCanvasContext, options: DrawHighwayOptio
     const pillW = Math.max(32, chord.name.length * 7.5 + 12);
     const pillH = 18;
     const pillY = Math.max(layout.headerHeight + 3, topY - pillH - 3);
-    ctx.fillStyle = "#262235";
-    ctx.strokeStyle = "rgba(255, 155, 120, 0.6)";
+    ctx.fillStyle = "#2c2c2e";
+    ctx.strokeStyle = "rgba(100, 165, 255, 0.42)";
     ctx.lineWidth = 1;
     drawRoundedRect(ctx, cx - pillW / 2, pillY, pillW, pillH, 6);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = "#ff9b78";
+    ctx.fillStyle = "#a9cbff";
     ctx.font = "700 11px 'JetBrains Mono', monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -935,7 +935,7 @@ export function drawHighway(ctx: HighwayCanvasContext, options: DrawHighwayOptio
     const y = laneY(layout, s);
     const gauge = 1.4 + (s / Math.max(1, stringCount - 1)) * 2.0;
     ctx.beginPath();
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.13)";
     ctx.lineWidth = gauge;
     ctx.moveTo(46, y);
     ctx.lineTo(layout.width, y);
@@ -945,10 +945,10 @@ export function drawHighway(ctx: HighwayCanvasContext, options: DrawHighwayOptio
   // 5. Hit line (strike zone) and target receivers per string.
   const waitingNow = waitingAt !== null;
   ctx.save();
-  ctx.strokeStyle = waitingNow ? "#ffc65c" : "#ff7a50";
+  ctx.strokeStyle = waitingNow ? "#ff9f0a" : "#64a5ff";
   ctx.lineWidth = waitingNow ? 3.5 : 2.5;
-  ctx.shadowColor = waitingNow ? "rgba(255, 198, 92, 0.8)" : "rgba(255, 122, 80, 0.7)";
-  ctx.shadowBlur = waitingNow ? 14 : 10;
+  ctx.shadowColor = waitingNow ? "rgba(255, 159, 10, 0.56)" : "rgba(0, 113, 227, 0.42)";
+  ctx.shadowBlur = waitingNow ? 10 : 7;
   ctx.beginPath();
   ctx.moveTo(layout.hitX, layout.headerHeight + 4);
   ctx.lineTo(layout.hitX, layout.height - 6);
@@ -959,7 +959,7 @@ export function drawHighway(ctx: HighwayCanvasContext, options: DrawHighwayOptio
     const y = laneY(layout, s);
     ctx.beginPath();
     ctx.strokeStyle = stringColor(s);
-    ctx.fillStyle = "#17151e";
+    ctx.fillStyle = "#1c1c1e";
     ctx.lineWidth = 2;
     ctx.arc(layout.hitX, y, 8, 0, Math.PI * 2);
     ctx.fill();
@@ -1055,7 +1055,7 @@ export function drawHighway(ctx: HighwayCanvasContext, options: DrawHighwayOptio
     ctx.save();
     if (activeNow) {
       ctx.shadowColor = colors.fill;
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 7;
     }
     if (state === "missed") {
       ctx.globalAlpha = 0.65;
@@ -1080,7 +1080,7 @@ export function drawHighway(ctx: HighwayCanvasContext, options: DrawHighwayOptio
     // Technique glyph badges above/below the gem.
     if (gem.techniques.length > 0) {
       const badgeText = gem.techniques.map((item) => item.label).join(" ");
-      ctx.fillStyle = "rgba(244, 241, 236, 0.92)";
+      ctx.fillStyle = "rgba(245, 245, 247, 0.92)";
       ctx.font = "700 10px 'Inter', system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "bottom";
@@ -1090,9 +1090,9 @@ export function drawHighway(ctx: HighwayCanvasContext, options: DrawHighwayOptio
   }
 
   // 8. Left string-tuning gutter (drawn on top so scrolling gems tuck behind the nut labels).
-  ctx.fillStyle = "#171520";
+  ctx.fillStyle = "#202022";
   ctx.fillRect(0, layout.headerHeight + 1, 46, layout.height - layout.headerHeight - 1);
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(46, layout.headerHeight);
@@ -1110,7 +1110,7 @@ export function drawHighway(ctx: HighwayCanvasContext, options: DrawHighwayOptio
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = "#f4f1ec";
+    ctx.fillStyle = "#f5f5f7";
     ctx.font = "700 11px 'JetBrains Mono', monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
