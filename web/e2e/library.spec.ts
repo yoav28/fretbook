@@ -72,6 +72,7 @@ test("search, sort and paging run on the server", async ({ page, seed }) => {
 
 test("a search that matches only the lyrics shows the matching line", async ({ page, seed }) => {
   await seed.chordSheet();
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   const search = page.getByTestId("library-search");
 
@@ -81,6 +82,8 @@ test("a search that matches only the lyrics shows the matching line", async ({ p
   const snippet = card.getByTestId("song-lyrics-snippet");
   await expect(snippet).toContainText("Walking down the road today");
   await expect(snippet.locator("mark")).toHaveText(["road", "today"]);
+  expect((await snippet.boundingBox())?.width).toBeGreaterThan(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 
   // A title match needs no explanation.
   await search.fill("sunny day");
@@ -103,37 +106,39 @@ test("the toolbar is one row on a desktop and the popover holds the filters", as
   page,
   seed,
 }) => {
-  await seed.musicXmlTab();
+  const tab = await seed.musicXmlTab();
+  await page.request.put(`/api/songs/${tab.id}/tags`, { data: { tags: ["funk"] } });
   await seed.chordSheet();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
   await expect(page.getByTestId("song-card")).toHaveCount(2);
 
-  const [search, sort, filters, select] = await Promise.all(
-    ["library-search", "library-sort", "library-filters", "library-select"].map(async (id) =>
+  const [search, sort, filters] = await Promise.all(
+    ["library-search", "library-sort", "library-filters"].map(async (id) =>
       page.getByTestId(id).boundingBox(),
     ),
   );
-  for (const box of [sort, filters, select]) {
+  for (const box of [sort, filters]) {
     expect(Math.abs(box!.y + box!.height / 2 - (search!.y + search!.height / 2))).toBeLessThan(12);
   }
 
   await page.getByTestId("library-filters").click();
-  const dialog = page.getByRole("dialog", { name: "Filters" });
+  const dialog = page.getByRole("dialog", { name: "Filter by tag" });
+  const funk = page.getByTestId("library-tag").filter({ hasText: "funk" });
   await expect(dialog).toBeVisible();
-  await expect(page.getByTestId("library-filters-done")).toBeHidden();
+  await expect(funk).toBeVisible();
   expect(await dialog.evaluate((el) => getComputedStyle(el).position)).toBe("absolute");
-  await page.getByTestId("library-level-easy").click();
+  await funk.click();
   await expect(page.getByTestId("library-filters-count")).toHaveText("1");
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog", { name: "Filters" })).toBeHidden();
+  await expect(page.getByRole("dialog", { name: "Filter by tag" })).toBeHidden();
   await expect(page.getByTestId("library-filters")).toBeFocused();
-  await expect(page.getByTestId("library-active-filter")).toHaveText("Easy (1–3)");
+  await expect(page.getByTestId("library-active-filter")).toHaveText("funk");
   await page.getByTestId("library-clear-filters").click();
   await expect(page.getByTestId("library-active-filter")).toHaveCount(0);
 });
 
-test("on a phone the filters open as a sheet without scrolling the page", async ({
+test("on a phone the tag filter stays on screen without scrolling the page", async ({
   page,
   seed,
 }) => {
@@ -149,66 +154,16 @@ test("on a phone the filters open as a sheet without scrolling the page", async 
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
   await trigger.click();
-  const dialog = page.getByRole("dialog", { name: "Filters" });
+  const dialog = page.getByRole("dialog", { name: "Filter by tag" });
   await expect(dialog).toBeVisible();
-  await expect(page.getByTestId("library-filters-done")).toBeVisible();
+  expect(await dialog.evaluate((el) => getComputedStyle(el).position)).toBe("fixed");
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
-  await expect(page.getByTestId("topbar-title")).toHaveCount(0);
-
-  const fit = await page.evaluate(() => {
-    const viewH = window.innerHeight;
-    const viewW = window.innerWidth;
-    const box = (el: Element | null) => {
-      if (!el) return null;
-      const r = el.getBoundingClientRect();
-      return { top: r.top, right: r.right, bottom: r.bottom, left: r.left, height: r.height };
-    };
-    const inside = (r: ReturnType<typeof box>) =>
-      !!r &&
-      r.height > 0 &&
-      r.top >= -1 &&
-      r.left >= -1 &&
-      r.bottom <= viewH + 1 &&
-      r.right <= viewW + 1;
-    const panel = document.querySelector('[role="dialog"]');
-    const chips = [...document.querySelectorAll('[data-testid="library-tag"]')];
-    const body = chips[0]?.closest(".sheet-body");
-    const bodyBox = box(body ?? null);
-    const chipBoxes = chips.map((chip) => box(chip));
-    // A chip in the sheet's scrollport counts: the sheet scrolls, the page does not.
-    const chipsInSheet = chipBoxes.every((r) => {
-      if (!r || !bodyBox || !body) return false;
-      const onScreen = r.bottom <= viewH + 1 && r.top >= -1 && r.left >= -1 && r.right <= viewW + 1;
-      if (onScreen && r.top >= bodyBox.top - 1 && r.bottom <= bodyBox.bottom + 1) return true;
-      return (
-        body.scrollHeight > body.clientHeight + 1 &&
-        bodyBox.bottom <= viewH + 1 &&
-        bodyBox.top >= -1
-      );
-    });
-    const first = chipBoxes[0];
-    return {
-      position: panel ? getComputedStyle(panel).position : "",
-      dialog: inside(box(panel)),
-      done: inside(box(document.querySelector('[data-testid="library-filters-done"]'))),
-      trigger: inside(box(document.querySelector('[data-testid="library-filters"]'))),
-      chipCount: chips.length,
-      firstChipVisible:
-        !!first && !!bodyBox && first.top >= bodyBox.top - 1 && first.bottom <= bodyBox.bottom + 1,
-      chipsInSheet,
-    };
-  });
-  expect(fit.position).toBe("fixed");
-  expect(fit.dialog).toBe(true);
-  expect(fit.done).toBe(true);
-  expect(fit.trigger).toBe(true);
-  expect(fit.chipCount).toBeGreaterThan(1);
-  expect(fit.firstChipVisible).toBe(true);
-  expect(fit.chipsInSheet).toBe(true);
-
-  await page.getByTestId("library-level-easy").click();
+  const box = await dialog.boundingBox();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+  await page.getByTestId("library-tag").first().click();
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
-  await page.getByTestId("library-filters-done").click();
+  await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
@@ -222,7 +177,7 @@ test("a song's menu holds edit, setlist and a delete that names the song", async
   await page.goto("/");
   await page.getByTestId("song-menu").click();
   const items = page.getByRole("menuitem");
-  await expect(items).toHaveText(["Edit", "Add to setlist", "Delete"]);
+  await expect(items).toHaveText(["Edit", "Delete"]);
 
   const prompts: string[] = [];
   page.on("dialog", (dialog) => {

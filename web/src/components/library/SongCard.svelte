@@ -3,6 +3,7 @@
   import OverflowMenu from "../ui/OverflowMenu.svelte";
   import { t } from "../../lib/i18n.svelte";
   import { instrumentLabel } from "../../lib/instruments";
+  import { snippetParts } from "../../lib/lyricsSnippet";
   import { followLink, hrefFor, navigate } from "../../lib/router.svelte";
   import type { SongSummary } from "../../lib/types";
 
@@ -51,6 +52,13 @@
   >
     <span class="song-title" data-testid="song-title">{song.title}</span>
     <span class="song-artist">{song.artist || "—"}</span>
+    {#if song.lyrics_snippet}
+      <span class="lyrics-snippet" data-testid="song-lyrics-snippet">
+        {#each snippetParts(song.lyrics_snippet) as part, index (index)}
+          {#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}
+        {/each}
+      </span>
+    {/if}
     <span class="song-meta">
       {kind}{#if song.content_kind === "tab"}
         · {t("library.tempo", { bpm: song.bpm })}{/if}
@@ -107,10 +115,23 @@
 
   .song-title,
   .song-artist,
-  .song-meta {
+  .song-meta,
+  .lyrics-snippet {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .lyrics-snippet {
+    grid-column: 1 / -1;
+    color: var(--text-2);
+    font-size: var(--fs-xs);
+  }
+
+  .lyrics-snippet mark {
+    border-radius: var(--r-xs);
+    background: var(--accent-soft);
+    color: var(--text);
   }
 
   .song-title {
@@ -140,6 +161,13 @@
   }
 
   @media (max-width: 767px) {
+    .actions :global(.icon-button) {
+      width: 44px;
+      min-width: 44px;
+      height: 44px;
+      min-height: 44px;
+    }
+
     .song-link {
       grid-template-columns: 1fr auto;
       gap: 0 var(--sp-3);
@@ -151,6 +179,10 @@
 
     .song-artist {
       grid-column: 1;
+    }
+
+    .lyrics-snippet {
+      grid-column: 1 / -1;
     }
 
     .song-meta {

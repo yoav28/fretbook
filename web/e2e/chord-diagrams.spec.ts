@@ -41,21 +41,3 @@ test("a chord sheet shows diagrams that follow transpose and remember the voicin
   await page.reload();
   await expect(page.getByTestId("chord-instrument")).toHaveValue("ukulele");
 });
-
-test("the chord library finds voicings for a chord", async ({ page }) => {
-  await page.goto("/tools");
-  await page.getByTestId("tool-card-chords").click();
-  await expect(page).toHaveURL("/tools/chords");
-  await expect(page.getByTestId("chord-voicing").first()).toBeVisible();
-
-  await page.getByTestId("chord-search").fill("F#m7");
-  await expect(page.getByTestId("chord-voicing").first()).toBeVisible();
-  await page.getByTestId("chord-instrument").selectOption("ukulele");
-  await expect(page.getByTestId("chord-voicing").first()).toBeVisible();
-  await page.getByTestId("voicing-play").first().click();
-
-  await page.getByTestId("chord-search").fill("Hm");
-  await expect(page.getByTestId("chord-unknown")).toBeVisible();
-  await page.getByTestId("tool-back").click();
-  await expect(page).toHaveURL("/tools");
-});

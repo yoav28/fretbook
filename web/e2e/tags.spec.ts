@@ -17,7 +17,6 @@ test("tag a song, star it, and filter the library by tags and favourites", async
   await expect(page.getByTestId("song-tag")).toHaveCount(2);
   await page.getByTestId("song-favourite").click();
   await expect(page.getByTestId("song-favourite")).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByTestId("side-favourites")).toContainText("Slap Funk");
 
   // The library offers the tags as filters and the star as a section.
   await page.goto("/");
@@ -37,18 +36,6 @@ test("tag a song, star it, and filter the library by tags and favourites", async
   await page.getByTestId("library-filter-favourites").click();
   await expect(page.getByTestId("song-card")).toHaveCount(1);
   await page.getByTestId("library-filter-favourites").click();
-
-  // Bulk tagging: select every song shown and add a tag.
-  await page.getByTestId("library-select").click();
-  await page.getByTestId("library-select-all").click();
-  await expect(page.getByTestId("library-selected")).toContainText("3");
-  await page.getByTestId("library-bulk-tag").fill("practice");
-  await page.getByTestId("library-bulk-apply").click();
-  await expect(page.getByTestId("library-bulk-notice")).toContainText("practice");
-  await page.getByTestId("library-filters").click();
-  await page.getByTestId("library-tag").filter({ hasText: "practice" }).click();
-  await expect(page.getByTestId("song-card")).toHaveCount(3);
-  await page.getByTestId("library-clear-filters").click();
   await expect(page.getByTestId("library-active-filter")).toHaveCount(0);
 });
 

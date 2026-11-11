@@ -1141,6 +1141,10 @@ textarea {
   }
 
   .topbar-actions .primary {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
     border-radius: 50%;
   }
 
@@ -2224,7 +2228,8 @@ div.player-page .song-header .cover {
 
   /* The fretboard rides just above the dock instead of sliding under it. */
   .fretboard-wrap {
-    padding: 0.5rem 0.75rem 0.35rem;
+    margin-top: 0;
+    padding: 0.5rem 0.75rem 0;
   }
 
   .fretboard-wrap svg {

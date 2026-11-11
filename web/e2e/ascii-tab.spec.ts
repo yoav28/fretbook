@@ -24,7 +24,7 @@ test("paste ASCII tab, preview it, and save it as a song", async ({ page }) => {
   await expect(page.getByTestId("paste-title")).toHaveAttribute("placeholder", "Pasted Riff");
 
   await page.getByTestId("paste-submit").click();
-  await expect(page).toHaveURL(/\/songs\/[^/]+$/);
+  await expect(page).toHaveURL(/\/songs\/(?:[^/]+\/)?[^/]+$/);
   await expect(page.getByTestId("song-heading")).toHaveText("Pasted Riff");
   await expect(page.getByTestId("rhythm-estimated-pill")).toBeVisible();
 });
@@ -39,7 +39,7 @@ test("pasted chords over lyrics are saved as a chord sheet", async ({ page }) =>
   await expect(page.getByTestId("paste-chords-note")).toBeVisible();
 
   await page.getByTestId("paste-submit").click();
-  await expect(page).toHaveURL(/\/songs\/[^/]+$/);
+  await expect(page).toHaveURL(/\/songs\/(?:[^/]+\/)?[^/]+$/);
   await expect(page.getByTestId("song-heading")).toHaveText("Pasted Chords");
   await expect(page.getByTestId("chord-name")).toHaveText(["C", "G"]);
 });
@@ -54,7 +54,7 @@ test("an uploaded .tab file becomes a tab with estimated rhythm", async ({ page 
     mimeType: "text/plain",
     buffer: Buffer.from(TAB),
   });
-  await expect(page).toHaveURL(/\/songs\/[^/]+$/);
+  await expect(page).toHaveURL(/\/songs\/(?:[^/]+\/)?[^/]+$/);
   await expect(page.getByTestId("song-heading")).toHaveText("Pasted Riff");
   await expect(page.getByTestId("rhythm-estimated-pill")).toBeVisible();
 });

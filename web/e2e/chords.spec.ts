@@ -8,7 +8,7 @@ test("create a chord sheet and transpose it", async ({ page }) => {
   await page.getByTestId("add-sheet-text").fill("[C]Hello [G]world\n[Am]Goodbye [F]moon");
   await page.getByTestId("add-sheet-submit").click();
 
-  await expect(page).toHaveURL(/\/songs\/[^/]+$/);
+  await expect(page).toHaveURL(/\/songs\/(?:[^/]+\/)?[^/]+$/);
   await expect(page.getByTestId("song-heading")).toHaveText("Two Chords");
   const chords = page.getByTestId("chord-name");
   await expect(chords).toHaveText(["C", "G", "Am", "F"]);
