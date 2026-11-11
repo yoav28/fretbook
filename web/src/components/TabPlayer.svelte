@@ -700,18 +700,6 @@
     applyPractice();
   }
 
-  function toggleMute() {
-    muted = !muted;
-    if (audioEl) audioEl.muted = muted;
-    const api = audioMode ? (companion.ready ? companion.api : null) : player.api;
-    if (api?.score) {
-      api.metronomeVolume = 0;
-      api.masterVolume = muted
-        ? 0
-        : (audioMode ? synthGain(practice.mix) : practice.mix.synth) * playbackVolume;
-    }
-  }
-
   function setVolume(value: number) {
     playbackVolume = Math.round(clamp01(value, 1) / 0.05) * 0.05;
     muted = false;
@@ -1630,6 +1618,7 @@
     align-self: flex-start;
     height: var(--sheet-height, calc(100dvh - var(--dock-space) - var(--sp-7)));
     max-height: var(--sheet-height, calc(100dvh - var(--dock-space) - var(--sp-7)));
+    overflow: hidden;
     z-index: 30;
   }
 

@@ -1007,7 +1007,8 @@
       "one": "Added “{tag}” to {count} song.",
       "other": "Added “{tag}” to {count} songs."
     },
-    "clearFilters": "Clear tag filters"
+    "clearFilters": "Clear tag filters",
+    "empty": "No tags match your filters."
   },
   "manageTags": {
     "open": "Manage tags",

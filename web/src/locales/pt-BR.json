@@ -1007,7 +1007,8 @@
       "one": "Etiqueta “{tag}” adicionada a {count} música.",
       "other": "Etiqueta “{tag}” adicionada a {count} músicas."
     },
-    "clearFilters": "Limpar filtros de etiqueta"
+    "clearFilters": "Limpar filtros de etiqueta",
+    "empty": "Nenhuma etiqueta corresponde aos filtros."
   },
   "manageTags": {
     "open": "Gerenciar tags",

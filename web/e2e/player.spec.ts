@@ -57,15 +57,17 @@ test("follow keeps the bar being played in view", async ({ page, seed }) => {
   await expect(play).toHaveAttribute("data-playing", "false");
 });
 
-test("the bar buttons move the position", async ({ page, seed }) => {
+test("the position slider moves between bars", async ({ page, seed }) => {
   const song = await seed.musicXmlTab();
   await page.goto(`/songs/${song.id}`);
   await expect(page.getByTestId("player-score").locator("svg").first()).toBeVisible();
-  await page.getByTestId("player-next").click();
+  const position = page.getByRole("slider", { name: "Position" });
+  await position.focus();
+  await position.press("ArrowRight");
   await expect(page.getByTestId("player-status")).toHaveAttribute("data-measure", "1");
-  await page.getByTestId("player-next").click();
+  await position.press("ArrowRight");
   await expect(page.getByTestId("player-status")).toHaveAttribute("data-measure", "2");
-  await page.getByTestId("player-prev").click();
+  await position.press("ArrowLeft");
   await expect(page.getByTestId("player-status")).toHaveAttribute("data-measure", "1");
 });
 
@@ -132,11 +134,12 @@ test.describe("touch screen", () => {
     await play.tap();
     await expect(page.getByRole("tooltip")).toHaveCount(0);
 
-    // Tap dock controls; tooltips must not stick
-    await page.getByTestId("player-next").tap();
+    // Tap the sheet control; its label must not stick as a tooltip
+    await page.getByTestId("player-panel-toggle").tap();
     await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await expect(page.getByTestId("player-sheet")).toBeVisible();
 
-    await page.getByTestId("player-prev").tap();
+    await page.getByTestId("player-sheet-close").tap();
     await expect(page.getByRole("tooltip")).toHaveCount(0);
 
     // Tap play to pause; tooltip still does not stick

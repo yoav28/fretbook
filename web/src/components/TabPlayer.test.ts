@@ -170,25 +170,24 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-it("keeps the loaded player when muting after a synchronous ready callback", async () => {
+it("keeps the loaded player when changing recording volume after a synchronous ready callback", async () => {
   render(TabPlayer, { song, readOnly: true });
   await waitFor(() => expect(lifecycle.created).toHaveBeenCalledTimes(1));
   const audio = screen.getByTestId("player-audio") as HTMLAudioElement;
   audio.currentTime = 0.75;
-  const mute = screen.getByTestId("player-mute");
+  const volume = screen.getByTestId("player-volume");
   expect(screen.queryByTestId("player-track")).toBeNull();
 
-  await fireEvent.click(mute);
-  expect(audio.muted).toBe(true);
+  await fireEvent.input(volume, { target: { value: "0.5" } });
+  expect(audio.volume).toBe(0.5);
+  expect(audio.muted).toBe(false);
   expect(audio.currentTime).toBe(0.75);
-  expect(mute).toHaveAttribute("aria-pressed", "true");
   expect(lifecycle.created).toHaveBeenCalledTimes(1);
   expect(lifecycle.destroyed).not.toHaveBeenCalled();
 
-  await fireEvent.click(mute);
-  expect(audio.muted).toBe(false);
+  await fireEvent.input(volume, { target: { value: "0.75" } });
+  expect(audio.volume).toBe(0.75);
   expect(audio.currentTime).toBe(0.75);
-  expect(mute).toHaveAttribute("aria-pressed", "false");
   expect(lifecycle.created).toHaveBeenCalledTimes(1);
   expect(lifecycle.destroyed).not.toHaveBeenCalled();
 });
@@ -283,8 +282,7 @@ it("keeps speed, loop, and playback when the layout crosses the phone breakpoint
   await waitFor(() => expect(lifecycle.created).toHaveBeenCalledTimes(1));
   const api = lifecycle.instances[0];
 
-  await fireEvent.click(screen.getByTestId("player-speed"));
-  await fireEvent.click(screen.getByTestId("player-speed-0.75"));
+  await fireEvent.input(screen.getByTestId("player-speed"), { target: { value: "0.75" } });
   await fireEvent.input(screen.getByRole("slider", { name: "Position" }), {
     target: { value: "5" },
   });

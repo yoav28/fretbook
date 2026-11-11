@@ -119,15 +119,15 @@
     scrollbar-width: none;
   }
 
-  .control.segmented[data-more-end] {
+  .control.segmented:global([data-more-end]) {
     mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
   }
 
-  .control.segmented[data-more-start] {
+  .control.segmented:global([data-more-start]) {
     mask-image: linear-gradient(to right, transparent, #000 28px);
   }
 
-  .control.segmented[data-more-start][data-more-end] {
+  .control.segmented:global([data-more-start][data-more-end]) {
     mask-image: linear-gradient(
       to right,
       transparent,

@@ -80,7 +80,7 @@ body:has(.player-page)::before {
 }
 
 .player-brand em {
-  color: var(--accent);
+  color: var(--accent-2);
   font-style: normal;
 }
 
