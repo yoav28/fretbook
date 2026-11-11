@@ -1800,14 +1800,32 @@ div.player-page .song-header .cover {
 }
 
 .at-cursor-bar {
-  background: rgba(255, 122, 80, 0.13) !important;
+  background: color-mix(in srgb, var(--accent) 7%, transparent) !important;
 }
 
 .at-cursor-beat {
-  background: var(--accent) !important;
-  width: 3px !important;
+  width: 56px !important;
+  transform: translateX(-50%);
+  border-radius: var(--r-md);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--accent) 13%, transparent) 24%,
+    color-mix(in srgb, var(--accent) 13%, transparent) 76%,
+    transparent
+  ) !important;
+}
+
+.at-cursor-beat::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
   border-radius: var(--r-xs);
-  box-shadow: 0 0 12px rgba(255, 122, 80, 0.7);
+  background: var(--accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 .at-playing-outline {
@@ -1826,13 +1844,22 @@ div.player-page .song-header .cover {
 
 /* Wait mode: the cursor pulses while it waits for a note and turns green on a hit. */
 .score[data-wait="waiting"] .at-cursor-beat {
-  width: 6px !important;
   animation: wait-pulse 1.1s ease-in-out infinite;
 }
 
 .score[data-wait="hit"] .at-cursor-beat {
-  background: var(--success) !important;
-  box-shadow: 0 0 14px var(--success);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--success) 13%, transparent) 24%,
+    color-mix(in srgb, var(--success) 13%, transparent) 76%,
+    transparent
+  ) !important;
+}
+
+.score[data-wait="hit"] .at-cursor-beat::after {
+  background: var(--success);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--success) 55%, transparent);
 }
 
 .score[data-wait="hit"] .at-highlight * {
@@ -1842,7 +1869,7 @@ div.player-page .song-header .cover {
 
 @keyframes wait-pulse {
   50% {
-    box-shadow: 0 0 22px rgba(255, 122, 80, 1);
+    filter: brightness(1.25);
   }
 }
 
