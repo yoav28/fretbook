@@ -1801,18 +1801,6 @@ div.player-page .song-header .cover {
   ) !important;
 }
 
-.at-cursor-beat::after {
-  content: "";
-  position: absolute;
-  inset-block: 0;
-  left: 50%;
-  width: 2px;
-  transform: translateX(-50%);
-  border-radius: var(--r-xs);
-  background: var(--accent);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 55%, transparent);
-}
-
 .at-playing-outline {
   position: absolute;
   z-index: 1001;
@@ -1840,11 +1828,6 @@ div.player-page .song-header .cover {
     color-mix(in srgb, var(--success) 13%, transparent) 76%,
     transparent
   ) !important;
-}
-
-.score[data-wait="hit"] .at-cursor-beat::after {
-  background: var(--success);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--success) 55%, transparent);
 }
 
 .score[data-wait="hit"] .at-highlight * {
