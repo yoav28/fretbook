@@ -131,8 +131,6 @@ export interface SongSummary {
   favourite: boolean;
   /** Estimated difficulty of the preferred track, 1 to 10; null for a chord sheet without chords. */
   difficulty: number | null;
-  /** Sorted A to Z ignoring case. */
-  tags: string[];
   /** The key (`C`, `F#`, `Am`, `Bbm`): the one set, else the one detected; null when unknown. */
   key: string | null;
   /** True when `key` was detected from the score and not set by the person. */
@@ -189,8 +187,6 @@ export interface SongQuery {
   sort?: LibrarySort;
   order?: SortOrder;
   instrument?: LibraryFilter;
-  /** A song needs every tag listed. */
-  tag?: string[];
   favourite?: boolean;
   key?: string;
   genre?: string;
@@ -202,13 +198,8 @@ export interface SongQuery {
   library?: string;
 }
 
-/** Songs in the whole library per filter, unaffected by search, tags and favourites. */
+/** Songs in the whole library per filter, unaffected by search and favourites. */
 export type LibraryCounts = Record<LibraryFilter, number> & { favourites: number };
-
-export interface TagCount {
-  tag: string;
-  count: number;
-}
 
 export interface SongPage {
   items: SongSummary[];

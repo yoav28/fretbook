@@ -2,11 +2,10 @@ import type { PracticeSessionDraft } from "../types";
 
 /**
  * A small write made with no network, waiting for one. Unlike an edit to a song these never conflict: the last
- * value wins (sync marks, tags, favourite) or they only add a row (a practice session).
+ * value wins (sync marks, favourite) or they only add a row (a practice session).
  */
 export type Op =
   | { kind: "sync"; songId: string; revision: number; bpm: number; anchors: Record<string, number> }
-  | { kind: "tags"; songId: string; tags: string[] }
   | { kind: "favourite"; songId: string; favourite: boolean }
   | { kind: "practice"; session: PracticeSessionDraft };
 
@@ -41,8 +40,6 @@ function isOp(value: unknown): value is Op {
         typeof op.anchors === "object" &&
         op.anchors !== null
       );
-    case "tags":
-      return typeof op.songId === "string" && Array.isArray(op.tags);
     case "favourite":
       return typeof op.songId === "string" && typeof op.favourite === "boolean";
     case "practice":
@@ -65,7 +62,12 @@ function isQueuedOp(value: unknown): value is QueuedOp {
 export function readOps(storage: Storage | null = browserStorage()): QueuedOp[] {
   try {
     const parsed: unknown = JSON.parse(storage?.getItem(KEY) ?? "[]");
-    return Array.isArray(parsed) ? parsed.filter(isQueuedOp) : [];
+    const ops = Array.isArray(parsed) ? parsed.filter(isQueuedOp) : [];
+    if (Array.isArray(parsed) && ops.length !== parsed.length && storage) {
+      if (ops.length) storage.setItem(KEY, JSON.stringify(ops));
+      else storage.removeItem(KEY);
+    }
+    return ops;
   } catch {
     return [];
   }
@@ -84,7 +86,7 @@ function slot(op: Op): string | null {
 }
 
 /**
- * Add an op after the others. A later sync, tag or favourite change for the same song replaces the earlier one
+ * Add an op after the others. A later sync or favourite change for the same song replaces the earlier one
  * (the last value is what the server should end up with); practice sessions all stay.
  */
 export function withOp(ops: QueuedOp[], item: QueuedOp): QueuedOp[] {

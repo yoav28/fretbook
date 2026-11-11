@@ -104,7 +104,7 @@ Today there are about ten ad-hoc radii (6, 8, 10, 11, 12, 14, 20, 22, 24, 28px).
 
 | Token | Value | Use |
 | --- | --- | --- |
-| `--r-xs` | 6px | Tags, small badges, keyboard keys |
+| `--r-xs` | 6px | Small badges, keyboard keys |
 | `--r-sm` | 8px | Buttons, inputs, selects, icon buttons, list rows |
 | `--r-md` | 12px | Panels and popovers |
 | `--r-lg` | 16px | Sheets and the player dock |
@@ -169,7 +169,6 @@ Subtitle / one-line description or count
 ### Chips, pills and badges
 
 - **Filter chip** (interactive, toggles): pill, `--surface` fill; selected = `--text` fill with `--bg` text. Optional count in `--text-3`.
-- **Tag chip** (interactive, opens filter): pill with tag icon.
 - **Meta pill** (not interactive: tuning, BPM, bars, key): `--r-xs`, no border, `--surface-2` fill, `--fs-xs`. It must not look like a button. A real action (Transpose) is a button, not a pill.
 - Rows of chips that can overflow scroll sideways with an edge fade.
 

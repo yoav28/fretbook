@@ -44,14 +44,11 @@ export async function extractDroppedFiles(dataTransfer: DataTransfer): Promise<F
     return files.length > 0 ? files : Array.from(dataTransfer.files ?? []);
   }
 
-  async function traverseEntry(entry: FileEntryLike, folderTag?: string): Promise<void> {
+  async function traverseEntry(entry: FileEntryLike): Promise<void> {
     if (entry.isFile && entry.file) {
       await new Promise<void>((resolve) => {
         entry.file!(
           (file: File) => {
-            if (folderTag) {
-              Object.defineProperty(file, "folderTag", { value: folderTag, writable: true });
-            }
             files.push(file);
             resolve();
           },
@@ -60,7 +57,6 @@ export async function extractDroppedFiles(dataTransfer: DataTransfer): Promise<F
       });
     } else if (entry.isDirectory && entry.createReader) {
       const dirReader = entry.createReader();
-      const currentFolder = folderTag || entry.name;
       const readBatch = async (): Promise<FileEntryLike[]> => {
         return new Promise((resolve) => {
           dirReader.readEntries(
@@ -72,7 +68,7 @@ export async function extractDroppedFiles(dataTransfer: DataTransfer): Promise<F
       let batch = await readBatch();
       while (batch.length > 0) {
         for (const child of batch) {
-          await traverseEntry(child, currentFolder);
+          await traverseEntry(child);
         }
         batch = await readBatch();
       }
@@ -89,12 +85,11 @@ export async function extractDroppedFiles(dataTransfer: DataTransfer): Promise<F
 export interface BulkImportOptions {
   files: File[];
   duplicates?: DuplicateAction;
-  tags?: string;
   family?: "bass" | "guitar" | null;
 }
 
 export async function processBulkImport(options: BulkImportOptions): Promise<void> {
-  const { files, duplicates = "skip", tags, family = null } = options;
+  const { files, duplicates = "skip", family = null } = options;
   if (!files || files.length === 0) return;
 
   const gpFiles: File[] = [];
@@ -111,7 +106,7 @@ export async function processBulkImport(options: BulkImportOptions): Promise<voi
   // 1. Enqueue server-side batch if any
   if (serverFiles.length > 0) {
     try {
-      const res = await importBulk(serverFiles, duplicates, tags);
+      const res = await importBulk(serverFiles, duplicates);
       if (res?.jobs?.length) {
         importQueue.trackJobIds(res.jobs.map((j) => j.job_id));
       } else {
@@ -125,8 +120,6 @@ export async function processBulkImport(options: BulkImportOptions): Promise<voi
   // 2. Process Guitar Pro files client-side in worker with bounded concurrency
   for (const file of gpFiles) {
     const jobId = `client-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const folderTag = (file as unknown as { folderTag?: string }).folderTag;
-    const batchTags = tags ? [tags] : folderTag ? [folderTag] : [];
 
     importQueue.addJob({
       id: jobId,
@@ -157,7 +150,6 @@ export async function processBulkImport(options: BulkImportOptions): Promise<voi
           source_kind: "guitarpro",
           document: parsed.document,
           on_duplicate: duplicates,
-          tags: batchTags,
         });
 
         importQueue.updateJob(jobId, {

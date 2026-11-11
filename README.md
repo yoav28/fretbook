@@ -2,7 +2,7 @@
 
 Self-hosted tabs, chord sheets, and sheet music for bass and guitar. This branch keeps the app focused on finding a song and playing it.
 
-- **Song library**: search and sort songs, narrow by instrument or favourites, and edit tags.
+- **Song library**: search and sort songs, narrow by instrument or favourites.
 - **Import and edit**: bring in tabs from Songsterr, Ultimate Guitar, Guitar Pro, MusicXML, MIDI, ASCII tab, or ChordPro. Start a blank tab or chord sheet, or add multiple files at once.
 - **Tab player**: play the score with the built-in synth or sync it to an audio file or YouTube recording. Tap bar positions or run Auto-sync to align the score.
 - **Player views**: choose tab, note highway, or split view. Turn on the fretboard to follow the selected track's notes, tuning, and capo.

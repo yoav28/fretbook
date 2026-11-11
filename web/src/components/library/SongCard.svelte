@@ -66,8 +66,8 @@
         data-testid="song-star"
         aria-pressed={song.favourite}
         onclick={onstar}
-        aria-label={`${song.favourite ? t("tags.unfavourite") : t("tags.favourite")}: ${song.title}`}
-        title={song.favourite ? t("tags.unfavourite") : t("tags.favourite")}
+        aria-label={`${song.favourite ? t("favourites.remove") : t("favourites.add")}: ${song.title}`}
+        title={song.favourite ? t("favourites.remove") : t("favourites.add")}
       >
         <Icon name={song.favourite ? "starFilled" : "star"} size={16} />
       </button>

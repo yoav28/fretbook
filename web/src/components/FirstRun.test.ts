@@ -11,7 +11,6 @@ vi.mock("../lib/api", () => ({
   addDemo: () => mockAddDemo(),
   saveSettings: (...args: unknown[]) => mockSaveSettings(...args),
   listSongs: (...args: unknown[]) => mockListSongs(...args),
-  listTags: async () => [],
   getFacets: async () => ({ keys: [], genres: [] }),
   // Reaching the network from a component test is a bug.
   getMeta: vi.fn(),

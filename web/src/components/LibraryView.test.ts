@@ -7,17 +7,14 @@ import LibraryView from "./LibraryView.svelte";
 const mockDeleteSong = vi.fn();
 const mockListSongs = vi.fn();
 const mockListJobs = vi.fn().mockResolvedValue([]);
-const mockAddTags = vi.fn();
 const mockGetFacets = vi.fn();
 const mockSetFavourite = vi.fn();
 
 vi.mock("../lib/api", () => ({
   deleteSong: (...args: unknown[]) => mockDeleteSong(...args),
   listSongs: (...args: unknown[]) => mockListSongs(...args),
-  listTags: vi.fn().mockResolvedValue([]),
   getFacets: (...args: unknown[]) => mockGetFacets(...args),
   setFavourite: (...args: unknown[]) => mockSetFavourite(...args),
-  addTags: (...args: unknown[]) => mockAddTags(...args),
   markSongOpened: vi.fn(),
   listJobs: (...args: unknown[]) => mockListJobs(...args),
   listLibraries: vi.fn().mockResolvedValue([]),
@@ -44,7 +41,6 @@ function makeSong(overrides: Partial<SongSummary>): SongSummary {
     updated_at: "2026-01-01T00:00:00Z",
     favourite: false,
     difficulty: null,
-    tags: [],
     key: null,
     key_detected: false,
     genre: "",
@@ -73,7 +69,6 @@ function fakeServer(query: SongQuery = {}): SongPage {
       (song) =>
         !query.instrument || query.instrument === "all" || family(song) === query.instrument,
     )
-    .filter((song) => (query.tag ?? []).every((tag) => song.tags.includes(tag)))
     .filter((song) => !query.favourite || song.favourite)
     .filter((song) => !query.key || song.key === query.key)
     .filter((song) => !query.genre || song.genre.toLowerCase() === query.genre.toLowerCase())
@@ -115,8 +110,6 @@ describe("LibraryView", () => {
     ui.counts = { all: 0, bass: 0, electric: 0, acoustic: 0, chords: 0, favourites: 0 };
     ui.loaded = true;
     ui.filter = "all";
-    ui.tags = [];
-    ui.tagList = [];
     ui.favouritesOnly = false;
     ui.level = "all";
     ui.keyFilter = "";
@@ -329,37 +322,6 @@ describe("LibraryView", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Failed to delete");
     confirmSpy.mockRestore();
   });
-  it("filters by several tags and by favourites through the server", async () => {
-    await load([
-      makeSong({ id: "1", title: "One", tags: ["funk", "slap"], favourite: true }),
-      makeSong({ id: "2", title: "Two", tags: ["funk"] }),
-    ]);
-    ui.tagList = [
-      { tag: "funk", count: 2 },
-      { tag: "slap", count: 1 },
-    ];
-    render(LibraryView);
-
-    await fireEvent.click(screen.getByTestId("library-filters"));
-    const [funk, slap] = screen.getAllByTestId("library-tag");
-    await fireEvent.click(funk);
-    await waitFor(() => expect(screen.getAllByTestId("song-card")).toHaveLength(2));
-    await fireEvent.click(slap);
-    await waitFor(() => expect(screen.getAllByTestId("song-card")).toHaveLength(1));
-    expect(mockListSongs).toHaveBeenLastCalledWith(
-      expect.objectContaining({ tag: ["funk", "slap"] }),
-    );
-    expect(slap).toHaveAttribute("aria-pressed", "true");
-
-    await fireEvent.click(slap);
-    await fireEvent.click(screen.getByTestId("library-filter-favourites"));
-    await waitFor(() =>
-      expect(mockListSongs).toHaveBeenLastCalledWith(
-        expect.objectContaining({ tag: ["funk"], favourite: true }),
-      ),
-    );
-    await waitFor(() => expect(screen.getAllByTestId("song-card")).toHaveLength(1));
-  });
 
   it("shows each tab's level and filters by band through the server", async () => {
     await load([
@@ -430,13 +392,6 @@ describe("LibraryView", () => {
     expect(screen.getByTestId("song-title")).toHaveTextContent("Bright");
   });
 
-  it("hides the key and genre filters when no song has either", async () => {
-    await load([makeSong({ id: "1", title: "Plain" })]);
-    render(LibraryView);
-    await fireEvent.click(screen.getByTestId("library-filters"));
-    expect(screen.queryByTestId("library-key-filter")).toBeNull();
-    expect(screen.queryByTestId("library-genre-filter")).toBeNull();
-  });
 
   it("stars a song from its card", async () => {
     await load([makeSong({ id: "s1", title: "Star Me" })]);
@@ -447,125 +402,9 @@ describe("LibraryView", () => {
     expect(mockSetFavourite).toHaveBeenCalledWith("s1", true);
   });
 
-  it("tags the selected songs in one go", async () => {
-    await load([makeSong({ id: "1", title: "One" }), makeSong({ id: "2", title: "Two" })]);
-    mockAddTags.mockResolvedValue(2);
-    render(LibraryView);
 
-    await fireEvent.click(screen.getByTestId("library-select"));
-    expect(screen.getByTestId("library-bulk-apply")).toBeDisabled();
-    await fireEvent.click(screen.getAllByTestId("song-select")[0]);
-    await fireEvent.click(screen.getAllByTestId("song-select")[1]);
-    expect(screen.getByTestId("library-selected")).toHaveTextContent("2 selected");
-    await fireEvent.input(screen.getByTestId("library-bulk-tag"), { target: { value: " Live " } });
-    await fireEvent.click(screen.getByTestId("library-bulk-apply"));
 
-    await waitFor(() => expect(mockAddTags).toHaveBeenCalledWith(["1", "2"], ["Live"]));
-    await waitFor(() =>
-      expect(screen.getByTestId("library-bulk-notice")).toHaveTextContent(
-        "Added “Live” to 2 songs",
-      ),
-    );
-    expect(screen.getByTestId("library-selected")).toHaveTextContent("0 selected");
-  });
 
-  it("offers to clear tag filters when nothing matches", async () => {
-    await load([makeSong({ id: "1", tags: [] })]);
-    ui.tagList = [{ tag: "funk", count: 0 }];
-    render(LibraryView);
-
-    await fireEvent.click(screen.getByTestId("library-filters"));
-    await fireEvent.click(screen.getByTestId("library-tag"));
-    await waitFor(() => expect(screen.getByTestId("library-filter-empty")).toBeInTheDocument());
-    await fireEvent.click(screen.getByTestId("library-clear-tags"));
-    await waitFor(() => expect(screen.getAllByTestId("song-card")).toHaveLength(1));
-    expect(ui.tags).toEqual([]);
-  });
-
-  it("shows removable chips for the filters in the popover, and clears them together", async () => {
-    await load([makeSong({ id: "1", key: "Am" }), makeSong({ id: "2", key: "C" })]);
-    ui.facets = {
-      keys: [
-        { name: "Am", count: 1 },
-        { name: "C", count: 1 },
-      ],
-      genres: [],
-    };
-    ui.tagList = [{ tag: "funk", count: 1 }];
-    render(LibraryView);
-    expect(screen.queryByTestId("library-active-filter")).toBeNull();
-
-    await fireEvent.click(screen.getByTestId("library-filters"));
-    await fireEvent.click(screen.getByTestId("library-level-easy"));
-    await fireEvent.click(screen.getByTestId("library-tag"));
-    await fireEvent.keyDown(document, { key: "Escape" });
-    expect(screen.getByTestId("library-filters")).toHaveFocus();
-    expect(screen.getByTestId("library-filters-count")).toHaveTextContent("2");
-
-    const chips = screen.getAllByTestId("library-active-filter");
-    expect(chips.map((chip) => chip.textContent?.trim())).toEqual(["Easy (1–3)", "funk"]);
-
-    await fireEvent.click(screen.getByRole("button", { name: "Remove filter: funk" }));
-    expect(ui.tags).toEqual([]);
-    expect(ui.level).toBe("easy");
-
-    await fireEvent.click(screen.getByTestId("library-clear-filters"));
-    expect(ui.level).toBe("all");
-    expect(screen.queryByTestId("library-active-filter")).toBeNull();
-  });
-
-  it("opens phone filters in the space under the button and closes from Done", async () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn((query: string) => ({
-        matches: query.includes("max-width"),
-        media: query,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      })),
-    );
-    const originalRect = HTMLElement.prototype.getBoundingClientRect;
-    const rect = vi
-      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
-      .mockImplementation(function (this: HTMLElement) {
-        if (this.dataset.testid === "library-filters") return new DOMRect(200, 240, 80, 44);
-        return originalRect.call(this);
-      });
-    const focus = vi.spyOn(HTMLElement.prototype, "focus");
-    const previousHeight = window.innerHeight;
-    Object.defineProperty(window, "innerHeight", { configurable: true, value: 664 });
-
-    try {
-      await load([makeSong({ id: "1", title: "One", tags: ["funk"] })]);
-      ui.tagList = [{ tag: "funk", count: 1 }];
-      render(LibraryView);
-
-      await fireEvent.click(screen.getByTestId("library-filters"));
-      const dialog = await screen.findByRole("dialog", { name: "Filters" });
-      // 664 - (240 + 44) - 8px gap. The sheet stops under the trigger.
-      expect(dialog).toHaveStyle({ maxHeight: "372px" });
-      expect(
-        focus.mock.calls.some(
-          (call) => (call[0] as { preventScroll?: boolean } | undefined)?.preventScroll === true,
-        ),
-      ).toBe(true);
-      await waitFor(() => expect(document.documentElement.style.overflow).toBe("hidden"));
-
-      await fireEvent.click(screen.getByTestId("library-filters-done"));
-      await waitFor(() => expect(screen.queryByRole("dialog", { name: "Filters" })).toBeNull());
-      expect(screen.getByTestId("library-filters")).toHaveFocus();
-      await waitFor(() => expect(document.documentElement.style.overflow).toBe(""));
-    } finally {
-      focus.mockRestore();
-      rect.mockRestore();
-      vi.unstubAllGlobals();
-      document.documentElement.style.overflow = "";
-      Object.defineProperty(window, "innerHeight", { configurable: true, value: previousHeight });
-    }
-  });
 
   it("keeps delete last in the song menu", async () => {
     await load([makeSong({ id: "1", title: "Menu Song" })]);

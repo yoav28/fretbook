@@ -94,7 +94,6 @@ def test_bulk_import_multiple_files(tmp_path: Path) -> None:
                 ("files", ("song1.xml", XML.encode(), "application/xml")),
                 ("files", ("song2.cho", CHO.encode(), "text/plain")),
             ],
-            data={"tags": "batch1, test"},
         )
         assert response.status_code == 202
         body = response.json()
@@ -109,13 +108,7 @@ def test_bulk_import_multiple_files(tmp_path: Path) -> None:
         titles = {s["title"] for s in songs["items"]}
         assert "Bulk Song" in titles
         assert "Chord Song" in titles
-        for s in songs["items"]:
-            detail = client.get(f"/api/songs/{s['id']}").json()
-            assert "batch1" in detail["tags"]
-            assert "test" in detail["tags"]
-
-
-def test_bulk_import_zip_archive_with_default_tags(tmp_path: Path) -> None:
+def test_bulk_import_zip_archive(tmp_path: Path) -> None:
     with _client(tmp_path) as client:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
@@ -135,12 +128,6 @@ def test_bulk_import_zip_archive_with_default_tags(tmp_path: Path) -> None:
 
         songs = client.get("/api/songs").json()
         assert songs["total"] == 2
-
-        # Verify tag was assigned from zip stem both in source_ref and via tags feature
-        song_detail = client.get(f"/api/songs/{songs['items'][0]['id']}").json()
-        assert song_detail["source_ref"].get("tags") == ["Rock_Pack"]
-        assert "Rock_Pack" in song_detail["tags"]
-
 
 def test_duplicate_skip_option(tmp_path: Path) -> None:
     with _client(tmp_path) as client:

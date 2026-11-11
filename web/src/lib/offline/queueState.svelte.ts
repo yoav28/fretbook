@@ -31,7 +31,7 @@ export function reloadQueue(): void {
   opsQueue.ops = readOps();
 }
 
-// --- small writes made offline (sync marks, tags, favourites, practice sessions) -------------------------------
+// --- small writes made offline (sync marks, favourites, practice sessions) ------------------------------------
 
 export const opsQueue = $state<{ ops: QueuedOp[] }>({ ops: readOps() });
 

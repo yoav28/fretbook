@@ -6,7 +6,6 @@ import {
   postPracticeSession,
   putFavourite,
   putSong,
-  putSongTags,
   sendSync,
 } from "../api";
 import type { SongDetail } from "../types";
@@ -147,9 +146,6 @@ async function sendOp(op: Op): Promise<void> {
       noteRebase(op.songId, op.revision, saved.revision);
       return;
     }
-    case "tags":
-      await putSongTags(op.songId, op.tags);
-      return;
     case "favourite":
       await putFavourite(op.songId, op.favourite);
       return;

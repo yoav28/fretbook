@@ -32,7 +32,6 @@ vi.mock("../lib/api", () => ({
     counts: { all: 0, bass: 0, electric: 0, acoustic: 0, chords: 0, favourites: 0 },
     next_cursor: null,
   }),
-  listTags: async () => [],
   getFacets: async () => ({ keys: [], genres: [] }),
 }));
 

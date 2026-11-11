@@ -184,7 +184,7 @@
         <IconButton
           class={favourite ? "song-star on" : "song-star"}
           icon={favourite ? "starFilled" : "star"}
-          label={favourite ? t("tags.unfavourite") : t("tags.favourite")}
+          label={favourite ? t("favourites.remove") : t("favourites.add")}
           testid="song-favourite"
           pressed={favourite}
           onclick={() => void toggleStar()}

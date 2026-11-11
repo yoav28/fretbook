@@ -138,7 +138,7 @@ describe("small writes made with no network", () => {
     throw new TypeError("Failed to fetch");
   };
 
-  it("queues sync marks, tags, favourites and practice sessions, and sends them in order when back online", async () => {
+  it("queues sync marks, favourites and practice sessions, and sends them in order when back online", async () => {
     let online = false;
     const calls: string[] = [];
     vi.stubGlobal(
@@ -148,23 +148,20 @@ describe("small writes made with no network", () => {
         if (!init?.method) return json({ ...song, document: { bpm: 90, sync: { anchors: {} } } });
         calls.push(`${init.method} ${url}`);
         if (url.endsWith("/sync")) return json({ ...song, revision: 4 });
-        if (url.endsWith("/tags")) return json({ tags: ["a"] });
         if (url.endsWith("/favourite")) return json({ favourite: true });
         return json({}, 201);
       }),
     );
-    const { patchSync, setSongTags, setFavourite, recordPracticeSession } = await import("../api");
+    const { patchSync, setFavourite, recordPracticeSession } = await import("../api");
     await getSong("s1");
     const synced = await patchSync("s1", { bpm: 100, anchors: { "0": 1 } });
     expect(synced.document).toMatchObject({ bpm: 100, sync: { anchors: { "0": 1 } } });
-    expect(await setSongTags("s1", ["a"])).toEqual(["a"]);
     expect(await setFavourite("s1", true)).toBe(true);
     await recordPracticeSession({ song_id: "s1" } as never);
     await recordPracticeSession({ song_id: "s1" } as never);
     // A later change to the same thing replaces the earlier one; sessions all stay.
     await patchSync("s1", { bpm: 110, anchors: { "0": 2 } });
     expect(opsQueue.ops.map((item) => item.op.kind)).toEqual([
-      "tags",
       "favourite",
       "practice",
       "practice",

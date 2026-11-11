@@ -13,7 +13,7 @@
 
   // The sheet that edits a song's key, genre, album, year, personal notes and cover art.
   // `onchange` gets the song as saved. The page shows the saved details in its Details section.
-  // `extra` is shown first: on a phone it holds the tags and facts the header leaves out.
+  // `extra` is shown first: on a phone it holds the facts the header leaves out.
   let {
     song,
     onchange,

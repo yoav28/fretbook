@@ -481,10 +481,6 @@
       "crossOrigin": "Requests from other sites are not allowed.",
       "invalid": "Some fields are not valid."
     },
-    "tag": {
-      "notFound": "That tag is not on any of your songs.",
-      "nameEmpty": "The new tag name cannot be empty."
-    },
     "song": {
       "notFound": "That song is not in your library.",
       "conflict": "This song was changed somewhere else after you opened it.",
@@ -986,53 +982,6 @@
     "allTuned": "All strings in tune",
     "startOver": "Start over"
   },
-  "tags": {
-    "heading": "Tags",
-    "filters": "Filter by tag",
-    "favourites": "Favourites",
-    "favourite": "Add to favourites",
-    "unfavourite": "Remove from favourites",
-    "add": "Add tag",
-    "addPlaceholder": "Add a tag…",
-    "remove": "Remove tag {tag}",
-    "select": "Select",
-    "selected": {
-      "one": "{count} selected",
-      "other": "{count} selected"
-    },
-    "selectAll": "Select all shown",
-    "selectSong": "Select song",
-    "bulkAdd": "Add tag to selected",
-    "bulkDone": {
-      "one": "Added “{tag}” to {count} song.",
-      "other": "Added “{tag}” to {count} songs."
-    },
-    "clearFilters": "Clear tag filters"
-  },
-  "manageTags": {
-    "open": "Manage tags",
-    "title": "Manage tags",
-    "hint": "Changes apply to every song in your library.",
-    "empty": "No tags yet.",
-    "list": "Tags",
-    "songs": {
-      "one": "{count} song",
-      "other": "{count} songs"
-    },
-    "newName": "New name for {tag}",
-    "rename": "Rename",
-    "renameOrMerge": "Rename or merge {tag}",
-    "save": "Save",
-    "cancel": "Cancel",
-    "mergeHint": "A tag with that name exists: the two will merge.",
-    "delete": "Delete",
-    "deleteTag": "Delete {tag}",
-    "confirmDelete": "Remove “{tag}” from {count} songs?",
-    "confirm": "Remove tag",
-    "renamed": "Renamed “{tag}” to “{name}” on {count} songs.",
-    "deleted": "Removed “{tag}” from {count} songs.",
-    "close": "Close"
-  },
   "wait": {
     "title": "Wait mode",
     "start": "Wait for me",
@@ -1073,8 +1022,6 @@
     "skip": "Skip",
     "keepBoth": "Keep both",
     "replace": "Replace",
-    "tags": "Tags for batch",
-    "tagsPlaceholder": "e.g. rock, live",
     "parsing": "Parsing Guitar Pro in worker…",
     "saving": "Saving…"
   },
@@ -1782,7 +1729,6 @@
     },
     "cycles": "Times through",
     "save": "Save to library",
-    "tag": "exercise",
     "scales": {
       "major": "major",
       "dorian": "Dorian",
@@ -2434,9 +2380,6 @@
     "actions": "Actions",
     "filters": "Filters",
     "level": "Level",
-    "tags": "Tags",
-    "active": "Active filters",
-    "remove": "Remove filter: {filter}",
     "clear": "Clear",
     "done": "Done",
     "sort": {
@@ -2500,8 +2443,6 @@
     "courseTime": "Total time {time}"
   },
   "songPage": {
-    "addTag": "Tag",
-    "cancelTag": "Cancel",
     "transpose": "Transpose",
     "keepOnDevice": "Keep on this device",
     "removeFromDevice": "Remove from this device",
@@ -2547,5 +2488,10 @@
     "saved": "Saved to {path}",
     "backUpNow": "Back up now",
     "running": "Backing up…"
+  },
+  "favourites": {
+    "heading": "Favourites",
+    "add": "Add to favourites",
+    "remove": "Remove from favourites"
   }
 }

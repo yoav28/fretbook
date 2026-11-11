@@ -718,7 +718,6 @@ export interface paths {
          *     Each valid file is queued as a background job.
          *     Options:
          *     - duplicates: "skip", "keep_both", or "replace"
-         *     - tags: optional default tags (comma-separated). For a .zip without tags, the archive name is used.
          */
         post: operations["import_bulk_api_imports_bulk_post"];
         delete?: never;
@@ -1727,10 +1726,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /**
-         * Set Favourite
-         * @description Star or unstar a song.
-         */
+        /** Set Favourite */
         put: operations["set_favourite_api_songs__song_id__favourite_put"];
         post?: never;
         delete?: never;
@@ -1951,26 +1947,6 @@ export interface paths {
         patch: operations["update_sync_api_songs__song_id__sync_patch"];
         trace?: never;
     };
-    "/api/songs/{song_id}/tags": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Set Song Tags
-         * @description Replace the song's tags.
-         */
-        put: operations["set_song_tags_api_songs__song_id__tags_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/songs/{song_id}/transcribe": {
         parameters: {
             query?: never;
@@ -2012,72 +1988,6 @@ export interface paths {
          * @description Save a document the browser built (the browser reads Guitar Pro with alphaTab).
          */
         post: operations["import_document_api_songs_import_document_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tags": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Tags
-         * @description Every tag on a library's songs with how many songs use it, most used first.
-         */
-        get: operations["list_tags_api_tags_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tags/{tag}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete Tag
-         * @description Remove a tag from all the songs in a library the caller can edit.
-         */
-        delete: operations["delete_tag_api_tags__tag__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Rename Tag
-         * @description Rename a tag on all the caller's songs, or merge it into another tag that has the new name.
-         *
-         *     The tag is matched ignoring case. A song that ends up with the tag twice keeps one.
-         */
-        patch: operations["rename_tag_api_tags__tag__patch"];
-        trace?: never;
-    };
-    "/api/tags/add": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Add Tags
-         * @description Add tags to many songs at once. Songs that are not the caller's are skipped.
-         */
-        post: operations["add_tags_api_tags_add_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2132,13 +2042,6 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** AddTagsBody */
-        AddTagsBody: {
-            /** Song Ids */
-            song_ids: string[];
-            /** Tags */
-            tags: string[];
-        };
         /** AdminJob */
         AdminJob: {
             /** Attempts */
@@ -2485,8 +2388,6 @@ export interface components {
             duplicates: "skip" | "keep_both" | "replace";
             /** Files */
             files: string[];
-            /** Tags */
-            tags?: string | null;
         };
         /** Body_import_file_api_imports_file_post */
         Body_import_file_api_imports_file_post: {
@@ -2924,8 +2825,6 @@ export interface components {
              * @enum {string}
              */
             source_kind: "file" | "guitarpro" | "musicxml" | "fretbook-json" | "manual";
-            /** Tags */
-            tags?: string[];
             /**
              * Title
              * @default Untitled
@@ -4021,11 +3920,6 @@ export interface components {
             /** Name */
             name: string;
         };
-        /** RenameTagBody */
-        RenameTagBody: {
-            /** Name */
-            name: string;
-        };
         /** ReplaceEntriesBody */
         ReplaceEntriesBody: {
             /** Entries */
@@ -4173,11 +4067,6 @@ export interface components {
             /** Updated At */
             updated_at: string;
         };
-        /** SetTagsBody */
-        SetTagsBody: {
-            /** Tags */
-            tags: string[];
-        };
         /**
          * Settings
          * @description Per-user preferences. ``default_instrument`` is a preset id from ``GET /api/meta``.
@@ -4307,8 +4196,6 @@ export interface components {
             };
             /** String Count */
             string_count: number;
-            /** Tags */
-            tags: string[];
             /** Title */
             title: string;
             /** Track Count */
@@ -4449,8 +4336,6 @@ export interface components {
             source_kind: string;
             /** String Count */
             string_count: number;
-            /** Tags */
-            tags: string[];
             /** Title */
             title: string;
             /** Track Count */
@@ -4459,11 +4344,6 @@ export interface components {
             updated_at: string;
             /** Year */
             year: number | null;
-        };
-        /** SongTags */
-        SongTags: {
-            /** Tags */
-            tags: string[];
         };
         /**
          * Stem
@@ -4583,23 +4463,6 @@ export interface components {
             version: string;
             /** Ytdlp Version */
             ytdlp_version: string | null;
-        };
-        /** TagCount */
-        TagCount: {
-            /** Count */
-            count: number;
-            /** Tag */
-            tag: string;
-        };
-        /** TagsAdded */
-        TagsAdded: {
-            /** Updated */
-            updated: number;
-        };
-        /** TagsChanged */
-        TagsChanged: {
-            /** Updated */
-            updated: number;
         };
         /** TokensRevoked */
         TokensRevoked: {
@@ -4803,7 +4666,6 @@ export interface components {
     headers: never;
     pathItems: never;
 }
-export type AddTagsBody = components['schemas']['AddTagsBody'];
 export type AdminJob = components['schemas']['AdminJob'];
 export type AdminUser = components['schemas']['AdminUser'];
 export type ApiToken = components['schemas']['ApiToken'];
@@ -4913,7 +4775,6 @@ export type PracticeWeek = components['schemas']['PracticeWeek'];
 export type PreviewBody = components['schemas']['PreviewBody'];
 export type Recommendations = components['schemas']['Recommendations'];
 export type RenameSetlistBody = components['schemas']['RenameSetlistBody'];
-export type RenameTagBody = components['schemas']['RenameTagBody'];
 export type ReplaceEntriesBody = components['schemas']['ReplaceEntriesBody'];
 export type ReviewSong = components['schemas']['ReviewSong'];
 export type RevisitLoop = components['schemas']['RevisitLoop'];
@@ -4923,7 +4784,6 @@ export type SetlistDetail = components['schemas']['SetlistDetail'];
 export type SetlistEntry = components['schemas']['SetlistEntry'];
 export type SetlistEntryBody = components['schemas']['SetlistEntryBody'];
 export type SetlistSummary = components['schemas']['SetlistSummary'];
-export type SetTagsBody = components['schemas']['SetTagsBody'];
 export type Settings = components['schemas']['Settings'];
 export type SettingsBody = components['schemas']['SettingsBody'];
 export type ShareBody = components['schemas']['ShareBody'];
@@ -4936,7 +4796,6 @@ export type SongPractice = components['schemas']['SongPractice'];
 export type SongsMoved = components['schemas']['SongsMoved'];
 export type SongsterrTrackChoice = components['schemas']['SongsterrTrackChoice'];
 export type SongSummary = components['schemas']['SongSummary'];
-export type SongTags = components['schemas']['SongTags'];
 export type Stem = components['schemas']['Stem'];
 export type StemList = components['schemas']['StemList'];
 export type StemRequest = components['schemas']['StemRequest'];
@@ -4945,9 +4804,6 @@ export type SuggestedSong = components['schemas']['SuggestedSong'];
 export type SyncBody = components['schemas']['SyncBody'];
 export type SyncMap = components['schemas']['SyncMap'];
 export type SystemInfo = components['schemas']['SystemInfo'];
-export type TagCount = components['schemas']['TagCount'];
-export type TagsAdded = components['schemas']['TagsAdded'];
-export type TagsChanged = components['schemas']['TagsChanged'];
 export type TokensRevoked = components['schemas']['TokensRevoked'];
 export type Track = components['schemas']['Track'];
 export type TrackBar = components['schemas']['TrackBar'];
@@ -12016,11 +11872,9 @@ export interface operations {
                 limit?: number;
                 /** @description Defaults to the natural order of `sort`. */
                 order?: ("asc" | "desc") | null;
-                /** @description Words matched as prefixes against title, artist, chord-sheet lyrics and tags. */
+                /** @description Words matched as prefixes against title, artist and chord-sheet lyrics. */
                 q?: string;
                 sort?: "title" | "artist" | "added" | "updated" | "opened" | "difficulty";
-                /** @description Repeat to require several tags; a song needs all of them. */
-                tag?: string[];
             };
             header?: never;
             path?: never;
@@ -14504,86 +14358,6 @@ export interface operations {
             };
         };
     };
-    set_song_tags_api_songs__song_id__tags_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                song_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SetTagsBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SongTags"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. `auth.required`: no session; sign in at `/auth/login`. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. `params.current` is the stored revision. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Validation failed. `detail` is a list of {type, loc, msg}, not a keyed error. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ValidationBody"];
-                };
-            };
-        };
-    };
     get_transcribe_info_api_songs__song_id__transcribe_get: {
         parameters: {
             query?: never;
@@ -14760,321 +14534,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SongDetail"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. `auth.required`: no session; sign in at `/auth/login`. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. `params.current` is the stored revision. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Validation failed. `detail` is a list of {type, loc, msg}, not a keyed error. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ValidationBody"];
-                };
-            };
-        };
-    };
-    list_tags_api_tags_get: {
-        parameters: {
-            query?: {
-                /** @description Library to read. Omit it for the personal library. */
-                library?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TagCount"][];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. `auth.required`: no session; sign in at `/auth/login`. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. `params.current` is the stored revision. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Validation failed. `detail` is a list of {type, loc, msg}, not a keyed error. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ValidationBody"];
-                };
-            };
-        };
-    };
-    delete_tag_api_tags__tag__delete: {
-        parameters: {
-            query?: {
-                library?: string | null;
-            };
-            header?: never;
-            path: {
-                tag: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TagsChanged"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. `auth.required`: no session; sign in at `/auth/login`. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. `params.current` is the stored revision. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Validation failed. `detail` is a list of {type, loc, msg}, not a keyed error. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ValidationBody"];
-                };
-            };
-        };
-    };
-    rename_tag_api_tags__tag__patch: {
-        parameters: {
-            query?: {
-                library?: string | null;
-            };
-            header?: never;
-            path: {
-                tag: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RenameTagBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TagsChanged"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. `auth.required`: no session; sign in at `/auth/login`. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. `params.current` is the stored revision. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Keyed error. `detail` is {key, message, params}. */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Validation failed. `detail` is a list of {type, loc, msg}, not a keyed error. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ValidationBody"];
-                };
-            };
-        };
-    };
-    add_tags_api_tags_add_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AddTagsBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TagsAdded"];
                 };
             };
             /** @description Keyed error. `detail` is {key, message, params}. */

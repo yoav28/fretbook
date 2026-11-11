@@ -5,7 +5,6 @@ import {
   getMeta,
   isOfflineError,
   listSongs,
-  listTags,
   saveSettings,
   setFavourite,
 } from "./api";
@@ -22,7 +21,6 @@ import type {
   SongQuery,
   SongSummary,
   SortOrder,
-  TagCount,
   YtDlpStatus,
 } from "./types";
 
@@ -121,10 +119,6 @@ export const ui = $state({
   recent: [] as SongSummary[],
   /** A few starred songs, for the sidebar. */
   favourites: [] as SongSummary[],
-  /** Every tag in the library with its song count, for the filter chips and tag suggestions. */
-  tagList: [] as TagCount[],
-  /** Tags the library is filtered by. A song needs all of them. */
-  tags: [] as string[],
   /** Show only starred songs. */
   favouritesOnly: false,
   /** Keep only songs in this key ("" for any), as the server names keys: `C`, `F#m`. */
@@ -184,7 +178,6 @@ function currentQuery(): SongQuery {
     sort: ui.sort,
     order: ui.order,
     instrument: ui.filter,
-    tag: [...ui.tags],
     favourite: ui.favouritesOnly,
     key: ui.keyFilter,
     genre: ui.genreFilter,
@@ -246,7 +239,7 @@ export function setActiveLibrary(id: string): void {
   }
 }
 
-/** Reload the library and the sidebar after the set of songs, their tags or their stars changed. */
+/** Reload the library and the sidebar after a song or its star changed. */
 export async function refreshSongs(): Promise<void> {
   try {
     await reloadLibrary();
@@ -262,11 +255,10 @@ export async function refreshSongs(): Promise<void> {
 
 async function reloadLibrary(): Promise<void> {
   const scope = libraryQuery();
-  const [, recent, favourites, tagList, facets] = await Promise.all([
+  const [, recent, favourites, facets] = await Promise.all([
     loadLibrary({ force: true }),
     listSongs({ sort: "updated", order: "desc", limit: 5, ...scope }),
     listSongs({ sort: "title", favourite: true, limit: 8, ...scope }),
-    listTags(ui.libraryId),
     getFacets(ui.libraryId),
   ]);
   ui.facets = facets;
@@ -280,11 +272,6 @@ async function reloadLibrary(): Promise<void> {
   }
   ui.recent = recent.items;
   ui.favourites = favourites.items;
-  ui.tagList = tagList;
-  // A tag that no song has any more cannot filter anything.
-  const known = tagList.map((item) => item.tag.toLowerCase());
-  const kept = ui.tags.filter((tag) => known.includes(tag.toLowerCase()));
-  if (kept.length !== ui.tags.length) ui.tags = kept;
 }
 
 /** Star or unstar a song, then refresh the library and the sidebar. */
@@ -294,14 +281,6 @@ export async function starSong(id: string, favourite: boolean): Promise<void> {
   await refreshSongs().catch((error: unknown) => {
     if (!isOfflineError(error)) throw error;
   });
-}
-
-/** Add or remove a tag from the library filter. */
-export function toggleTagFilter(tag: string): void {
-  const lower = tag.toLowerCase();
-  ui.tags = ui.tags.some((item) => item.toLowerCase() === lower)
-    ? ui.tags.filter((item) => item.toLowerCase() !== lower)
-    : [...ui.tags, tag];
 }
 
 /** Remember the sort. Without an order, the sort starts in its natural one. */

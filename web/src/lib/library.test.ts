@@ -2,14 +2,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { songsPath } from "./songQuery";
 import type { SongPage, SongQuery } from "./types";
-import * as api from "./api";
 import {
   countFor,
   loadLibrary,
   loadMore,
   refreshSongs,
   setSort,
-  toggleTagFilter,
   ui,
 } from "./ui.svelte";
 
@@ -20,7 +18,6 @@ vi.mock("./api", () => ({
   getMe: vi.fn(),
   getMeta: vi.fn(),
   saveSettings: vi.fn(),
-  listTags: vi.fn().mockResolvedValue([]),
   getFacets: vi.fn().mockResolvedValue({ keys: [], genres: [] }),
 }));
 
@@ -37,7 +34,6 @@ beforeEach(() => {
   mockListSongs.mockReset();
   ui.search = "";
   ui.filter = "all";
-  ui.tags = [];
   ui.favouritesOnly = false;
   ui.level = "all";
 });
@@ -69,12 +65,10 @@ describe("songsPath", () => {
     expect(songsPath({ key: "", genre: "" })).toBe("/api/songs");
   });
 
-  it("sends each tag as its own parameter and drops a false favourite", () => {
-    const params = new URL(songsPath({ tag: ["funk", "warm up"], favourite: true }), "http://x")
-      .searchParams;
-    expect(params.getAll("tag")).toEqual(["funk", "warm up"]);
+  it("sends the favourite filter and drops a false value", () => {
+    const params = new URL(songsPath({ favourite: true }), "http://x").searchParams;
     expect(params.get("favourite")).toBe("true");
-    expect(songsPath({ tag: [], favourite: false })).toBe("/api/songs");
+    expect(songsPath({ favourite: false })).toBe("/api/songs");
   });
 });
 
@@ -93,36 +87,6 @@ describe("loadLibrary", () => {
     await first;
 
     expect(ui.songs.map((song) => song.title)).toEqual(["new"]);
-  });
-});
-
-describe("tag and favourite filters", () => {
-  it("sends the selected tags and the favourites switch with the query", async () => {
-    mockListSongs.mockResolvedValue(page("x"));
-    toggleTagFilter("Funk");
-    toggleTagFilter("slap");
-    ui.favouritesOnly = true;
-    await loadLibrary();
-    expect(mockListSongs.mock.calls[0][0]).toMatchObject({
-      tag: ["Funk", "slap"],
-      favourite: true,
-    });
-  });
-
-  it("toggles a tag without caring about case", () => {
-    toggleTagFilter("Funk");
-    toggleTagFilter("funk");
-    expect(ui.tags).toEqual([]);
-  });
-
-  it("drops a selected tag that no song has any more", async () => {
-    mockListSongs.mockResolvedValue(page("x"));
-    vi.mocked(api.listTags).mockResolvedValue([{ tag: "Funk", count: 2 }]);
-    ui.tags = ["funk", "gone"];
-    await refreshSongs();
-    expect(ui.tags).toEqual(["funk"]);
-    expect(ui.tagList).toEqual([{ tag: "Funk", count: 2 }]);
-    vi.mocked(api.listTags).mockResolvedValue([]);
   });
 });
 

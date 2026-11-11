@@ -187,7 +187,7 @@
           {/each}
           <Chip
             variant="filter"
-            label={t("tags.favourites")}
+            label={t("favourites.heading")}
             icon={ui.favouritesOnly ? "starFilled" : "star"}
             count={countFor("favourites")}
             testid="library-filter-favourites"

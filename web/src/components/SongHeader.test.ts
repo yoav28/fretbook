@@ -4,17 +4,14 @@ import type { SongDetail } from "../lib/types";
 import { ui } from "../lib/ui.svelte";
 import SongHeader from "./SongHeader.svelte";
 
-const mockSetSongTags = vi.fn();
 const mockSetFavourite = vi.fn();
 const mockDeleteSong = vi.fn();
 const mockListSongs = vi.fn();
 
 vi.mock("../lib/api", () => ({
-  setSongTags: (...args: unknown[]) => mockSetSongTags(...args),
   setFavourite: (...args: unknown[]) => mockSetFavourite(...args),
   deleteSong: (...args: unknown[]) => mockDeleteSong(...args),
   listSongs: (...args: unknown[]) => mockListSongs(...args),
-  listTags: vi.fn().mockResolvedValue([]),
   getFacets: vi.fn().mockResolvedValue({ keys: [], genres: [] }),
   listLibraries: vi.fn().mockResolvedValue([]),
   listShares: vi.fn().mockResolvedValue([]),
@@ -26,7 +23,6 @@ const song = {
   artist: "Band",
   content_kind: "tab",
   favourite: false,
-  tags: ["funk"],
   key: "Em",
   key_detected: false,
   cover_url: null,
@@ -42,7 +38,6 @@ describe("SongHeader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ui.demoMode = false;
-    ui.tagList = [];
     mockListSongs.mockResolvedValue({
       items: [],
       total: 0,
@@ -68,23 +63,6 @@ describe("SongHeader", () => {
     await fireEvent.click(star);
     await waitFor(() => expect(star).toHaveAttribute("aria-pressed", "true"));
     expect(mockSetFavourite).toHaveBeenCalledWith("s1", true);
-  });
-
-  it("adds a tag and shows what the server stored", async () => {
-    mockSetSongTags.mockResolvedValue(["funk", "slap"]);
-    render(SongHeader, props());
-    await fireEvent.click(screen.getByTestId("song-tag-new"));
-    await fireEvent.input(screen.getByTestId("song-tag-input"), { target: { value: "slap" } });
-    await fireEvent.submit(screen.getByTestId("song-tag-input").closest("form") as HTMLFormElement);
-    await waitFor(() => expect(mockSetSongTags).toHaveBeenCalledWith("s1", ["funk", "slap"]));
-    await waitFor(() => expect(screen.getAllByTestId("song-tag")).toHaveLength(2));
-  });
-
-  it("explains a failed tag save", async () => {
-    mockSetSongTags.mockRejectedValue(new Error("nope"));
-    render(SongHeader, props());
-    await fireEvent.click(screen.getByTestId("song-tag-remove"));
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("nope"));
   });
 
   it("keeps Transpose and Edit as buttons and the rest in the overflow menu", async () => {
@@ -128,9 +106,8 @@ describe("SongHeader", () => {
 
   it("keeps the non-editing actions for a band viewer", async () => {
     render(SongHeader, props({ readOnly: true, onretune: vi.fn() }));
-    // The star and tags are saved on the song, which the server only lets an editor change.
+    // The star is saved on the song, which the server only lets an editor change.
     expect(screen.queryByTestId("song-favourite")).toBeNull();
-    expect(screen.queryByTestId("song-tag-new")).toBeNull();
     expect(screen.getByTestId("song-retune")).toBeTruthy();
     expect(screen.queryByTestId("song-edit-link")).toBeNull();
     await fireEvent.click(screen.getByTestId("song-more"));

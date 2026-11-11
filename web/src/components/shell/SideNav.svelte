@@ -46,8 +46,8 @@
   </nav>
 
   {#if favourites.length}
-    <nav class="group favourites" aria-label={t("tags.favourites")} data-testid="side-favourites">
-      <p class="side-label">{t("tags.favourites")}</p>
+    <nav class="group favourites" aria-label={t("favourites.heading")} data-testid="side-favourites">
+      <p class="side-label">{t("favourites.heading")}</p>
       {#each favourites as song (song.id)}
         <a
           class="recent-link"

@@ -15,7 +15,7 @@ import sqlite3
 import uuid
 import zipfile
 from pathlib import Path
-from typing import IO, Annotated, Any, Literal
+from typing import IO, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -90,8 +90,6 @@ class _Song(BaseModel):
     source_ref: dict[str, Any] = Field(default_factory=dict)
     file: str = Field(max_length=500)
     media: list[_Media] = Field(default_factory=list)
-    # Untrusted like the rest: the repository cleans, dedupes and caps tags before storing them.
-    tags: list[Annotated[str, Field(max_length=200)]] = Field(default_factory=list, max_length=1000)
     favourite: bool = False
     # Additive: archives from before song metadata have none. Checked like a PATCH before it is stored.
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -480,17 +478,18 @@ def _restore_song(
         text = chordpro.normalize(raw.decode("utf-8"))
     # Keep the original id when nothing else uses it; ids are global, so another user's song may.
     keep_id = entry.id if not songs.id_taken(entry.id) else None
+    source_ref = dict(entry.source_ref)
+    source_ref.pop("tags", None)
     song = songs.create_song(
         owner_id,
         title=entry.title.strip() or "Untitled",
         artist=entry.artist.strip(),
         source_kind=entry.source_kind,
-        source_ref=entry.source_ref,
+        source_ref=source_ref,
         document=document,
         chordpro=text,
         song_id=keep_id,
     )
-    songs.set_tags(owner_id, song["id"], entry.tags)
     songs.set_favourite(owner_id, song["id"], entry.favourite)
     try:
         wanted = {name: value for name, value in entry.metadata.items() if name in METADATA_FIELDS}

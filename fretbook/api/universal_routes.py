@@ -118,7 +118,6 @@ async def _from_file(file: UploadFile, ctx: AppContext, user: Principal, on_dupl
             if not extracted:
                 raise api_error(400, "import.emptyZip", "Zip archive contains no files")
 
-            zip_stem = Path(filename).stem
             first_job_id = None
             for item in extracted:
                 job_id = ctx.jobs.enqueue(
@@ -130,7 +129,6 @@ async def _from_file(file: UploadFile, ctx: AppContext, user: Principal, on_dupl
                         "kind": None,
                         "prefer": _prefer(ctx, user),
                         "on_duplicate": on_duplicate,
-                        "tags": [zip_stem],
                     },
                 )
                 if first_job_id is None:

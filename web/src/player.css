@@ -215,10 +215,6 @@ div.player-page .song-header.compact .facts .meta.accent {
   color: var(--accent-text);
 }
 
-div.player-page .song-header.compact .song-tags {
-  gap: var(--sp-1);
-}
-
 div.player-page .song-saved-loops {
   margin: 0;
 }
