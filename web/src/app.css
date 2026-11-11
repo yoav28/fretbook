@@ -103,7 +103,7 @@
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
   /* Room the player's floating dock takes at the bottom of the viewport. */
-  --dock-space: calc(128px + var(--safe-b));
+  --dock-space: calc(104px + var(--safe-b));
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   font-family: var(--font-sans);
@@ -1799,20 +1799,6 @@ div.player-page .song-header .cover {
     color-mix(in srgb, var(--accent) 13%, transparent) 76%,
     transparent
   ) !important;
-}
-
-.at-playing-outline {
-  position: absolute;
-  z-index: 1001;
-  overflow: visible;
-  pointer-events: none;
-}
-
-.at-playing-outline path {
-  fill: none;
-  stroke: #000;
-  stroke-width: 2;
-  vector-effect: non-scaling-stroke;
 }
 
 /* Wait mode: the cursor pulses while it waits for a note and turns green on a hit. */

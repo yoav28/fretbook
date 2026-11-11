@@ -243,19 +243,6 @@ div.player-page .fretboard-wrap {
   box-shadow: none;
 }
 
-div.player-page .at-cursor-bar {
-  background: rgb(0 113 227 / 0.17) !important;
-}
-
-div.player-page .at-cursor-beat {
-  background: var(--accent) !important;
-  box-shadow: 0 0 10px rgb(0 113 227 / 0.5);
-}
-
-div.player-page .at-playing-outline path {
-  stroke: var(--text);
-}
-
 div.player-page .at-selection div {
   background: rgb(0 113 227 / 0.18) !important;
 }
