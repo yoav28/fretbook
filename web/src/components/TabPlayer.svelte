@@ -3,6 +3,7 @@
   import { onMount, untrack, type Snippet } from "svelte";
 
   import DockSpeed from "./DockSpeed.svelte";
+  import DockVolume from "./DockVolume.svelte";
   import DockTextButton from "./DockTextButton.svelte";
   import Fretboard from "./Fretboard.svelte";
   import Highway from "./Highway.svelte";
@@ -108,6 +109,7 @@
   let clock = $state("0:00.0");
   let playing = $state(false);
   let muted = $state(false);
+  let playbackVolume = $state(1);
   let helpOpen = $state(false);
   let saveLabel = $state("");
   let saveTimer = 0;
@@ -676,13 +678,15 @@
   function applyPractice() {
     savePractice(song.id, practice);
     if (audioEl) {
-      audioEl.volume = recordingGain(practice.mix);
+      audioEl.volume = recordingGain(practice.mix) * playbackVolume;
       audioEl.muted = muted;
     }
     const api = audioMode ? (companion.ready ? companion.api : null) : player.api;
     if (!api?.score) return;
     api.metronomeVolume = 0;
-    api.masterVolume = muted ? 0 : audioMode ? synthGain(practice.mix) : practice.mix.synth;
+    api.masterVolume = muted
+      ? 0
+      : (audioMode ? synthGain(practice.mix) : practice.mix.synth) * playbackVolume;
     api.score.tracks.forEach((item, index) => {
       const id = document_.tracks[index]?.id;
       if (id === undefined) return;
@@ -703,8 +707,16 @@
     const api = audioMode ? (companion.ready ? companion.api : null) : player.api;
     if (api?.score) {
       api.metronomeVolume = 0;
-      api.masterVolume = muted ? 0 : audioMode ? synthGain(practice.mix) : practice.mix.synth;
+      api.masterVolume = muted
+        ? 0
+        : (audioMode ? synthGain(practice.mix) : practice.mix.synth) * playbackVolume;
     }
+  }
+
+  function setVolume(value: number) {
+    playbackVolume = clamp01(value, 1);
+    muted = false;
+    applyPractice();
   }
 
   const playButtonLabel = $derived(playing ? t("player.pause") : t("player.play"));
@@ -1435,15 +1447,7 @@
           placement="above"
           onclick={() => step(1)}
         />
-        <IconButton
-          class="ghost"
-          icon={muted ? "volumeX" : "volume2"}
-          label={t(muted ? "player.unmutePlayback" : "player.mutePlayback")}
-          testid="player-mute"
-          pressed={muted}
-          placement="above"
-          onclick={toggleMute}
-        />
+        <DockVolume volume={playbackVolume} onchange={setVolume} />
       </div>
 
       <div class="dock-progress">

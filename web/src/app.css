@@ -1723,6 +1723,12 @@ textarea {
   padding-bottom: calc(150px + var(--safe-b));
 }
 
+@media (min-width: 768px) {
+  .content:has(.player-page) {
+    padding: 24px calc(20px + var(--safe-r)) 32px calc(20px + var(--safe-l));
+  }
+}
+
 .player-stage {
   position: relative;
   display: grid;
