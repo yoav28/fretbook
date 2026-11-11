@@ -1,9 +1,9 @@
 /*
  * Fretbook design system. The rules live in docs/design/design-language.md.
  *
- * Dark is the default ("night session"): ink-black surfaces with an ember accent.
- * Light ("daylight") swaps the surface tokens. Song playback uses a dark score
- * surface; standalone chord sheets and exported notation retain warm paper.
+ * Dark is the default: graphite surfaces with a restrained blue accent.
+ * Light appearance adapts the same semantic tokens. Notation follows the
+ * current appearance, while exported notation retains paper.
  *
  * Layout: a sidebar on desktop, a slim icon rail on tablets, and a top bar plus
  * bottom tab bar on phones.
@@ -12,39 +12,39 @@
 :root {
   color-scheme: dark;
 
-  --bg: #0c0b10;
-  --bg-elev: #111017;
-  --surface: #17151e;
-  --surface-2: #1e1c27;
-  --surface-3: #282533;
-  --line: rgba(255, 255, 255, 0.07);
-  --line-strong: rgba(255, 255, 255, 0.13);
-  --text: #f4f1ec;
-  --text-2: #bab4c4;
-  --text-3: #9893a5;
-  --glass: rgba(18, 16, 24, 0.72);
-  --glass-solid: rgba(24, 22, 31, 0.9);
-  --glass-line: rgba(255, 255, 255, 0.08);
+  --bg: #1c1c1e;
+  --bg-elev: #1c1c1e;
+  --surface: #2c2c2e;
+  --surface-2: #3a3a3c;
+  --surface-3: #48484a;
+  --line: rgba(255, 255, 255, 0.12);
+  --line-strong: rgba(255, 255, 255, 0.22);
+  --text: #f5f5f7;
+  --text-2: #b8b8bc;
+  --text-3: #96969b;
+  --glass: rgba(28, 28, 30, 0.92);
+  --glass-solid: rgba(44, 44, 46, 0.97);
+  --glass-line: rgba(255, 255, 255, 0.12);
 
-  --accent: #ff7a50;
-  --accent-2: #ff4f81;
-  --accent-ink: #221210;
-  --accent-text: #ff9b78;
-  --accent-soft: rgba(255, 122, 80, 0.14);
-  --accent-ring: rgba(255, 122, 80, 0.45);
-  --grad: linear-gradient(135deg, #ffa25a 0%, #ff6a52 45%, #ff4f81 100%);
-  --glow: 0 10px 30px -10px rgba(255, 92, 90, 0.65);
+  --accent: #0071e3;
+  --accent-2: #64a5ff;
+  --accent-ink: #fff;
+  --accent-text: #64a5ff;
+  --accent-soft: rgba(0, 113, 227, 0.18);
+  --accent-ring: rgba(0, 113, 227, 0.55);
+  --grad: linear-gradient(135deg, #0071e3 0%, #0055b8 100%);
+  --glow: none;
 
-  --danger: #ff6b6b;
-  --danger-soft: rgba(255, 107, 107, 0.12);
-  --success: #5fd6a4;
-  --success-soft: rgba(95, 214, 164, 0.12);
-  --warn: #ffc65c;
-  --warn-soft: rgba(255, 198, 92, 0.12);
+  --danger: #ff453a;
+  --danger-soft: rgba(255, 69, 58, 0.14);
+  --success: #30d158;
+  --success-soft: rgba(48, 209, 88, 0.14);
+  --warn: #ff9f0a;
+  --warn-soft: rgba(255, 159, 10, 0.14);
 
   /* Scored play-along. --grade-early is darkened in the light theme so it stays above 3:1 on paper. */
   --grade-hit: var(--success);
-  --grade-early: #7cb8ff;
+  --grade-early: #64b5ff;
   --grade-late: var(--warn);
   --grade-miss: var(--danger);
 
@@ -55,19 +55,19 @@
   --heat-3: color-mix(in srgb, var(--accent) 80%, var(--surface-2));
   --heat-4: var(--accent);
 
-  --paper: #fbf8f2;
-  --paper-ink: #1d1a17;
-  --paper-dim: #7a6f62;
-  --paper-chord: #c4451e;
+  --paper: #1d1d1f;
+  --paper-ink: #f5f5f7;
+  --paper-dim: #a1a1a6;
+  --paper-chord: #64a5ff;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 8px 24px -8px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 30px 80px -20px rgba(0, 0, 0, 0.75);
+  --shadow-md: 0 6px 20px -8px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 18px 48px -24px rgba(0, 0, 0, 0.7);
 
   --r-xs: 6px;
-  --r-sm: 10px;
-  --r-md: 14px;
-  --r-lg: 20px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
   --r-pill: 999px;
 
   --sp-1: 4px;
@@ -93,13 +93,12 @@
   --page: 1180px;
   --page-wide: 1480px;
 
-  --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Instrument Serif", "Iowan Old Style", Georgia, serif;
-  --font-mono:
-    "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", sans-serif;
+  --font-display: var(--font-sans);
+  --font-mono: "SF Mono", ui-monospace, monospace;
 
   --side-w: 248px;
-  --pad: clamp(16px, 3.2vw, 44px);
+  --pad: clamp(16px, 2.5vw, 32px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
@@ -122,25 +121,26 @@
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --bg: #f6f3ee;
-  --bg-elev: #fbf9f6;
+  --bg: #f2f2f7;
+  --bg-elev: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f2eee8;
-  --surface-3: #e8e3db;
-  --line: rgba(30, 22, 12, 0.08);
-  --line-strong: rgba(30, 22, 12, 0.15);
-  --text: #18151c;
-  --text-2: #4f4956;
-  --text-3: #69626f;
-  --glass: rgba(251, 249, 246, 0.78);
+  --surface-2: #f2f2f7;
+  --surface-3: #e5e5ea;
+  --line: rgba(60, 60, 67, 0.14);
+  --line-strong: rgba(60, 60, 67, 0.24);
+  --text: #1c1c1e;
+  --text-2: #3a3a3c;
+  --text-3: #6e6e73;
+  --glass: rgba(242, 242, 247, 0.9);
   --glass-solid: rgba(255, 255, 255, 0.9);
-  --glass-line: rgba(30, 22, 12, 0.08);
+  --glass-line: rgba(60, 60, 67, 0.14);
 
-  --accent: #f0562c;
-  --accent-text: #b83714;
-  --accent-soft: rgba(240, 86, 44, 0.1);
-  --accent-ring: rgba(240, 86, 44, 0.4);
-  --glow: 0 10px 28px -10px rgba(240, 86, 44, 0.55);
+  --accent: #0071e3;
+  --accent-text: #0057d8;
+  --accent-soft: rgba(0, 113, 227, 0.1);
+  --accent-ring: rgba(0, 113, 227, 0.45);
+  --grad: linear-gradient(135deg, #0071e3 0%, #0055b8 100%);
+  --glow: none;
 
   --danger: #b92e2e;
   --danger-soft: rgba(214, 60, 60, 0.09);
@@ -151,7 +151,10 @@
   /* #7cb8ff is about 2:1 on white. This blue is about 6:1, so an early mark stays visible on paper. */
   --grade-early: #1a5fbf;
 
-  --paper: #fffdf9;
+  --paper: #ffffff;
+  --paper-ink: #1c1c1e;
+  --paper-dim: #6e6e73;
+  --paper-chord: #0057d8;
 
   --shadow-sm: 0 1px 2px rgba(40, 28, 10, 0.08);
   --shadow-md: 0 10px 30px -12px rgba(40, 28, 10, 0.22);
@@ -173,23 +176,6 @@ body {
   min-height: 100dvh;
   background: var(--bg);
   overflow-x: hidden;
-}
-
-/* A soft ember bloom at the top of the page. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: -20vh -10vw auto;
-  height: 70vh;
-  pointer-events: none;
-  z-index: -1;
-  background:
-    radial-gradient(50% 60% at 78% 10%, rgba(255, 79, 129, 0.12), transparent 70%),
-    radial-gradient(45% 55% at 30% 0%, rgba(255, 122, 80, 0.13), transparent 70%);
-}
-
-:root[data-theme="light"] body::before {
-  opacity: 0.7;
 }
 
 h1,
@@ -828,20 +814,19 @@ textarea {
 }
 
 .card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  padding: clamp(1rem, 2vw, 1.4rem);
-  box-shadow: var(--shadow-sm);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: var(--sp-4) 0;
+  box-shadow: none;
 }
 
 .card-title {
-  margin-bottom: 1rem;
-  font-size: 0.78rem;
-  font-weight: 650;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-2);
+  margin-bottom: var(--sp-3);
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text);
 }
 
 .alert {
@@ -1060,7 +1045,7 @@ textarea {
 
 .content {
   margin-left: var(--side-w);
-  padding: clamp(20px, 3.4vw, 48px) calc(var(--pad) + var(--safe-r)) 64px
+  padding: clamp(20px, 2.2vw, 32px) calc(var(--pad) + var(--safe-r)) 48px
     calc(var(--pad) + var(--safe-l));
   min-width: 0;
 }
@@ -2580,8 +2565,25 @@ div.player-page .song-header .cover {
 .editor-side,
 .editor-main {
   display: grid;
-  gap: 1.1rem;
+  gap: var(--sp-4);
   min-width: 0;
+}
+
+.editor-side {
+  gap: 0;
+}
+
+.editor-side > .card + .card {
+  border-top: 1px solid var(--line);
+}
+
+.editor-page .card-title {
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
 }
 
 @media (min-width: 1024px) {
@@ -2603,11 +2605,10 @@ div.player-page .song-header .cover {
 
 .track-tabs {
   display: flex;
-  gap: 4px;
-  margin-bottom: 1rem;
-  padding: 3px;
-  border-radius: var(--r-md);
-  background: var(--surface-2);
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+  padding: 0;
+  border-bottom: 1px solid var(--line);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -2615,20 +2616,21 @@ div.player-page .song-header .cover {
 .track-tabs button {
   flex: none;
   min-height: 44px;
-  padding: 0 0.8rem;
+  margin-bottom: -1px;
+  padding: 0 var(--sp-3);
   border: 0;
-  border-radius: var(--r-sm);
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   background: transparent;
   color: var(--text-2);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 .track-tabs button[aria-selected="true"] {
-  background: var(--surface);
+  border-bottom-color: var(--accent);
+  background: transparent;
   color: var(--text);
-  box-shadow:
-    var(--shadow-sm),
-    0 0 0 1px var(--line-strong);
+  box-shadow: none;
 }
 
 .dot {
@@ -2784,19 +2786,19 @@ div.player-page .song-header .cover {
 .beat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 0.9rem;
+  gap: var(--sp-3) var(--sp-4);
   align-items: start;
 }
 
 .beat-card {
   display: grid;
   min-width: 0;
-  gap: 0.8rem;
-  padding: 0.85rem;
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-sm);
+  gap: var(--sp-2);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .beat-head {
@@ -2848,9 +2850,9 @@ div.player-page .song-header .cover {
 .staff {
   display: grid;
   gap: 4px;
-  padding: 8px;
-  border-radius: var(--r-md);
-  background: var(--surface-2);
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .staff-row {

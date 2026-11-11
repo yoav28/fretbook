@@ -215,29 +215,6 @@ div.player-page .song-header.compact .facts .meta.accent {
   color: var(--accent-text);
 }
 
-div.player-page .view-row .control.segmented {
-  gap: var(--sp-2);
-  padding: 0;
-  overflow: visible;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
-  background: transparent;
-}
-
-div.player-page .view-row .control.segmented button {
-  min-height: 44px;
-  padding: 0 var(--sp-3);
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-}
-
-div.player-page .view-row .control.segmented button[aria-selected="true"] {
-  border-bottom-color: var(--accent);
-  background: transparent;
-  color: var(--text);
-}
-
 div.player-page .song-header.compact .song-tags {
   gap: var(--sp-1);
 }
