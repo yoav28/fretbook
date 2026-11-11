@@ -869,13 +869,11 @@
     const timer = window.setInterval(paintAudioClock, 50);
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target && /INPUT|TEXTAREA|SELECT/.test(target.tagName)) return;
+      if (isTyping(target)) return;
       // Space and T in the Auto-sync preview must not tap a bar behind the sheet.
       if (target?.closest('[data-testid="autosync-sheet"]')) return;
-      // A focused button already handles Space itself.
-      if (target?.tagName === "BUTTON" && event.key === " ") return;
       // A page-turner pedal sends ordinary keys; the ones the user mapped win over the shortcuts.
-      const pedal = isTyping(target) ? null : pedalAction(event);
+      const pedal = pedalAction(event);
       if (
         pedal === "nextPage" ||
         pedal === "previousPage" ||
@@ -883,6 +881,7 @@
         pedal === "loop"
       ) {
         event.preventDefault();
+        event.stopPropagation();
         if (pedal === "toggle") toggle();
         else if (pedal === "loop") toggleLoop();
         else pageBy(pedal === "nextPage" ? 1 : -1);
@@ -890,6 +889,7 @@
       }
       if (event.key === "Escape" && handsFree.stage && !helpOpen) {
         event.preventDefault();
+        event.stopPropagation();
         trackScroll();
         panelOpen = false;
         setStage(false);
@@ -900,10 +900,11 @@
       // The help dialog is modal: only its own key works while it is open.
       if (helpOpen && action !== "help") return;
       event.preventDefault();
+      event.stopPropagation();
       perform(action);
     };
     const metronome = window.setInterval(tickMetronome, 25);
-    document.addEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey, true);
     return () => {
       window.clearInterval(timer);
       window.clearInterval(metronome);
@@ -911,7 +912,7 @@
       clicker.close();
       waitRun?.stop();
       scoreRun?.stop();
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onKey, true);
       // Leaving the page must not lose a tap that is still waiting to be saved.
       void flushSync();
     };

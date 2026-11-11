@@ -47,12 +47,14 @@ export const SHORTCUTS: Shortcut[] = [
 /** The action for a key press, or null when it is not ours (or a modifier is held). */
 export function shortcutFor(event: {
   key: string;
+  code?: string;
   ctrlKey: boolean;
   metaKey: boolean;
   altKey: boolean;
 }): ShortcutAction | null {
   if (event.ctrlKey || event.metaKey || event.altKey) return null;
-  return SHORTCUTS.find((item) => item.keys.includes(event.key))?.action ?? null;
+  const key = event.code === "Space" || event.key === "Spacebar" ? " " : event.key;
+  return SHORTCUTS.find((item) => item.keys.includes(key))?.action ?? null;
 }
 
 export const RATES = [0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5];
