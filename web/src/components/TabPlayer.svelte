@@ -868,6 +868,12 @@
     }
     const timer = window.setInterval(paintAudioClock, 50);
     const onKey = (event: KeyboardEvent) => {
+      if (event.code === "Space" || event.key === " " || event.key === "Spacebar") {
+        event.preventDefault();
+        event.stopPropagation();
+        perform("toggle");
+        return;
+      }
       const target = event.target as HTMLElement | null;
       if (isTyping(target)) return;
       // Space and T in the Auto-sync preview must not tap a bar behind the sheet.
