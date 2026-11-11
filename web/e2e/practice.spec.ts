@@ -143,6 +143,38 @@ test("the synth plays beside the recording, balanced by the mixer", async ({ pag
   await expect(stage).toHaveAttribute("data-synth", "off");
 });
 
+test("attaching a YouTube recording updates the player", async ({ page, seed }) => {
+  const song = await seed.musicXmlTab();
+  const detail = await (await page.request.get(`/api/songs/${song.id}`)).json();
+  await page.goto(`/songs/${song.id}`);
+  await expect(page.getByTestId("player-score").locator("svg").first()).toBeVisible();
+
+  await page.route(`**/api/songs/${song.id}/audio/youtube`, (route) =>
+    route.fulfill({ json: { job_id: "youtube-test" } }),
+  );
+  await page.route("**/api/jobs/youtube-test", (route) =>
+    route.fulfill({ json: { status: "done" } }),
+  );
+  await page.route(`**/api/songs/${song.id}`, (route) =>
+    route.request().method() === "GET"
+      ? route.fulfill({
+          json: {
+            ...detail,
+            has_audio: true,
+            audio_url: `/api/songs/${song.id}/audio`,
+          },
+        })
+      : route.continue(),
+  );
+
+  await page.getByTestId("player-panel-toggle").click();
+  await page.getByTestId("player-sheet-tab-audio").click();
+  await page.getByTestId("youtube-audio-url").fill("https://youtu.be/dQw4w9WgXcQ");
+  await page.getByTestId("youtube-audio-go").click();
+  await expect(page.getByTestId("player-audio")).toHaveCount(1);
+  await expect(page.getByTestId("youtube-audio-url")).toHaveValue("");
+});
+
 test("saves named practice loops and jumps to them from the song page", async ({ page, seed }) => {
   const song = await seed.musicXmlTab();
   await page.goto(`/songs/${song.id}`);

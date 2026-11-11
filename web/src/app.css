@@ -3344,7 +3344,7 @@ div.player-page .song-header .cover {
 }
 
 :root[data-fullscreen] .player-page {
-  padding-bottom: var(--dock-space);
+  padding-bottom: 0;
 }
 
 /* Fills the screen above the dock; split view keeps its own height. */

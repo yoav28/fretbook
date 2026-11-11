@@ -43,3 +43,14 @@ test("an imported ChordPro file shows its chords, and edits persist", async ({ p
   await page.reload();
   await expect(page.getByTestId("chord-text")).toHaveValue(/^\[E\]Edited \[A\]line\s*$/);
 });
+
+test("the chord sheet print control invokes the browser print action", async ({ page, seed }) => {
+  const song = await seed.chordSheet();
+  await page.goto(`/songs/${song.id}`);
+  await expect(page.getByTestId("chord-name").first()).toBeVisible();
+  await page.evaluate(() => {
+    window.print = () => document.documentElement.setAttribute("data-print-called", "true");
+  });
+  await page.getByTestId("export-print").click();
+  await expect(page.locator("html")).toHaveAttribute("data-print-called", "true");
+});
