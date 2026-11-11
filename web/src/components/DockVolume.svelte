@@ -45,7 +45,7 @@
 
   @media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
     input {
-      width: 44px;
+      width: 56px;
     }
 
     .volume {
@@ -59,6 +59,12 @@
       overflow: hidden;
       clip: rect(0, 0, 0, 0);
       white-space: nowrap;
+    }
+  }
+
+  @media (max-width: 420px) {
+    input {
+      width: 48px;
     }
   }
 </style>

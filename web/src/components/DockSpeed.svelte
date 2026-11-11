@@ -60,7 +60,13 @@
     }
 
     input {
-      width: 60px;
+      width: 72px;
+    }
+  }
+
+  @media (max-width: 420px) {
+    input {
+      width: 56px;
     }
   }
 </style>

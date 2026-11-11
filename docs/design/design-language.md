@@ -69,12 +69,12 @@ Fonts stay: Inter Variable (UI), Instrument Serif (display), JetBrains Mono (num
 
 | Token | Size / line height | Use |
 | --- | --- | --- |
-| `--fs-display` | clamp(40px, 5vw, 60px) / 1.02, serif | Page title (H1) on top-level pages, song title on the song page |
+| `--fs-display` | clamp(36px, 4vw, 54px) / 1.02, serif | Page title (H1) on top-level pages, song title on the song page |
 | `--fs-title` | 32px / 1.1, serif | H1 on sub-pages (a setlist, a course, a tool) |
 | `--fs-h2` | 20px / 1.3, Inter 600 | Section headings inside a page |
 | `--fs-h3` | 16px / 1.4, Inter 600 | Card titles, panel group titles |
-| `--fs-body` | 15px / 1.55 | Body text |
-| `--fs-sm` | 13px / 1.45 | Meta lines, helper text |
+| `--fs-body` | 16px / 1.55 | Body text |
+| `--fs-sm` | 14px / 1.45 | Meta lines, helper text |
 | `--fs-xs` | 12px / 1.4 | Badges, counts |
 | `--fs-eyebrow` | 11.5px, 600, 0.14em tracking, uppercase | Eyebrow above a page title |
 | `--fs-hero-num` | 56px, Inter 700 tabular | Big numbers (metronome BPM, results score, streak) |
@@ -157,7 +157,7 @@ Subtitle / one-line description or count
 
 | Kind | Look | When |
 | --- | --- | --- |
-| Primary | `--grad` fill, white text, `--glow` | The single most important action in the view: Play, Start, Save, Create |
+| Primary | `--grad` fill, `--accent-ink` text, `--glow` | The single most important action in the view: Play, Start, Save, Create |
 | Secondary | `--surface-2` fill, `--line-strong` border | Other actions. One step above a `--surface` card, so the button stays visible on it |
 | Ghost | No fill, `--text-2` | Low-emphasis actions, toolbar items with labels |
 | Danger | `--danger-soft` fill, `--danger` text | Confirming a destructive action (inside the confirm step only) |

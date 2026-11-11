@@ -45,7 +45,6 @@
   }}
 >
   <div class="sheet-body">
-    <span class="sheet-grabber" aria-hidden="true"></span>
     <header class="sheet-head">
       <div>
         <h2 class="display">{title}</h2>
