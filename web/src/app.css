@@ -2,8 +2,8 @@
  * Fretbook design system. The rules live in docs/design/design-language.md.
  *
  * Dark is the default ("night session"): ink-black surfaces with an ember accent.
- * Light ("daylight") swaps the surface tokens. Sheet music always sits on warm
- * paper, whatever the theme, because notation reads best dark-on-light.
+ * Light ("daylight") swaps the surface tokens. Song playback uses a dark score
+ * surface; standalone chord sheets and exported notation retain warm paper.
  *
  * Layout: a sidebar on desktop, a slim icon rail on tablets, and a top bar plus
  * bottom tab bar on phones.
@@ -1737,12 +1737,6 @@ div.player-page .song-header .cover {
 
 .player-page {
   padding-bottom: calc(150px + var(--safe-b));
-}
-
-@media (min-width: 768px) {
-  .content:has(.player-page) {
-    padding: 24px calc(20px + var(--safe-r)) 32px calc(20px + var(--safe-l));
-  }
 }
 
 .player-stage {

@@ -6,6 +6,7 @@ import { mount } from "svelte";
 
 import App from "./App.svelte";
 import "./app.css";
+import "./player.css";
 import { startOffline } from "./lib/offline/offline.svelte";
 import { rangeFillPercent } from "./lib/rangeFill";
 

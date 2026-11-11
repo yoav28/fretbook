@@ -29,6 +29,7 @@
   let {
     song,
     readOnly = false,
+    compact = false,
     eyebrow,
     strings = 6,
     facts = [],
@@ -39,6 +40,7 @@
   }: {
     song: SongDetail;
     readOnly?: boolean;
+    compact?: boolean;
     eyebrow: string;
     strings?: number;
     facts?: Fact[];
@@ -169,15 +171,16 @@
       ? [eyebrow, song.artist, ...allFacts.map((fact) => fact.label)].filter(Boolean).join(" · ")
       : "",
   );
+  const compactSubtitle = $derived([song.artist, eyebrow].filter(Boolean).join(" · "));
 </script>
 
 <PageHeader
-  class="song-header"
+  class={compact ? "song-header compact" : "song-header"}
   title={song.title}
   titleTestId="song-heading"
   titleClass="song-heading"
-  eyebrow={phone ? "" : [eyebrow, song.artist].filter(Boolean).join(" · ")}
-  subtitle={artistLine}
+  eyebrow={compact || phone ? "" : [eyebrow, song.artist].filter(Boolean).join(" · ")}
+  subtitle={compact ? compactSubtitle : artistLine}
   backHref="/"
   backLabel={t("app.back")}
 >
@@ -224,7 +227,7 @@
     </div>
   {/snippet}
   {#snippet below()}
-    {#if !phone}
+    {#if !phone || compact}
       <div class="facts">
         {#each allFacts as fact (fact.label)}
           <Chip

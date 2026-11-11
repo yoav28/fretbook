@@ -1,6 +1,6 @@
 # Fretbook design language
 
-Status: v1, proposed in the UI/UX overhaul epic. It evolves the current "night session" system in `web/src/app.css`. It does not replace it: the ember accent, Instrument Serif display face, Inter body text and the paper surface for notation all stay. What this adds is the missing rules (spacing, radius, type scale, page template, button hierarchy, icon meanings, destructive actions, motion, celebration and voice) so that every page is built the same way.
+Status: v1, proposed in the UI/UX overhaul epic. It evolves the current "night session" system in `web/src/app.css`. It does not replace it: the ember accent, Instrument Serif display face, and Inter body text remain. Song playback uses a dark score surface with blue playback emphasis; chord sheets and exported notation retain warm paper. What this adds is the missing rules (spacing, radius, type scale, page template, button hierarchy, icon meanings, destructive actions, motion, celebration and voice) so that every page is built the same way.
 
 Mockups that apply it: [`issue-assets/ui-audit-2026-10/mockups/`](https://github.com/liftedkilt/fretbook/tree/issue-assets/ui-audit-2026-10/mockups).
 
@@ -37,7 +37,7 @@ Keep the existing tokens. Add semantic roles so components stop picking raw colo
 | Accent | `--accent`, `--accent-text`, `--accent-soft`, `--accent-ring` | Current nav item icon, selected chip border, focus ring, links |
 | Primary CTA / reward | `--grad`, `--glow` | One primary button per view; celebration moments only |
 | Status | `--success`, `--warn`, `--danger` (+ `-soft`) | Banners, validation, destructive buttons |
-| Paper | `--paper`, `--paper-ink`, `--paper-dim`, `--paper-chord` | Every notation, tab and chord-sheet surface, in every context including previews |
+| Paper | `--paper`, `--paper-ink`, `--paper-dim`, `--paper-chord` | Chord sheets, chord diagrams, editor previews, and exported notation |
 
 New tokens:
 
@@ -210,7 +210,7 @@ The player's panel is a sheet with **tabs**, not one long scroll (see the Player
 
 ## 10. Notation surfaces
 
-Any alphaTab render, tab preview, chord sheet or chord diagram on paper uses the paper tokens, whatever the theme, in every context (song page, editor preview, exercise preview, lesson excerpts, PDF). Never render notation directly on a dark card.
+Chord sheets, chord diagrams, editor previews, lesson excerpts, and PDFs use the paper tokens, whatever the theme. The song player uses dark alphaTab notation with explicit light glyph, staff, and cursor colors so the score stays legible without a paper surface.
 
 ## 11. Destructive actions
 

@@ -47,6 +47,7 @@
   import { highwayStarts, timeAtBarPosition } from "../lib/highway";
   import { instrumentLabel } from "../lib/instruments";
   import { followPlayed, playedBars } from "../lib/playback";
+  import { followLink, hrefFor } from "../lib/router.svelte";
   import { keepAwake } from "../lib/wakeLock";
   import {
     clamp01,
@@ -425,6 +426,13 @@
     settings.core.enableLazyLoading = false;
     settings.display.staveProfile = staveProfile(untrack(() => ui.notation));
     separateEffectBands(settings);
+    const resources = settings.display.resources;
+    resources.staffLineColor = alphaTab.model.Color.fromJson("#55565d")!;
+    resources.barSeparatorColor = alphaTab.model.Color.fromJson("#8e8e93")!;
+    resources.barNumberColor = alphaTab.model.Color.fromJson("#64a5ff")!;
+    resources.mainGlyphColor = alphaTab.model.Color.fromJson("#f5f5f7")!;
+    resources.secondaryGlyphColor = alphaTab.model.Color.fromJson("#b7b7bc")!;
+    resources.scoreInfoColor = alphaTab.model.Color.fromJson("#d1d1d6")!;
     if (onPhone) hideScoreHeader(settings, alphaTab);
     settings.display.scale = untrack(scoreScale);
     settings.player.playerMode = useAudio
@@ -598,6 +606,12 @@
     }
     const timer = window.setInterval(paintAudioClock, 50);
     const onKey = (event: KeyboardEvent) => {
+      if (event.code === "Space" || event.key === " " || event.key === "Spacebar") {
+        event.preventDefault();
+        event.stopPropagation();
+        perform("toggle");
+        return;
+      }
       const target = event.target as HTMLElement | null;
       if (isTyping(target)) return;
       // Space and T in the Auto-sync preview must not tap a bar behind the sheet.
@@ -1165,6 +1179,23 @@
   class:has-fretboard={practice.fretboard.on}
   style:--dock-live={dockHeight > 0 ? `calc(${dockHeight + 14}px + var(--safe-b))` : undefined}
 >
+  <a class="player-skip" href="#player-score">{t("player.skipToScore")}</a>
+  <header class="player-topnav">
+    <a
+      class="player-brand"
+      href={hrefFor("/")}
+      aria-label={t("app.title")}
+      onclick={(event) => followLink(event, "/")}
+    >
+      Fret<em>book</em>
+    </a>
+    <nav aria-label={t("nav.main")}>
+      <a href={hrefFor("/")} onclick={(event) => followLink(event, "/")}
+        ><Icon name="library" size={16} />{t("library.heading")}</a
+      >
+      <span class="current" aria-current="page">{t("player.practiceMode")}</span>
+    </nav>
+  </header>
   {#if handsFree.stage && !fullscreenToggle?.isOn()}
     <button
       type="button"
@@ -1183,6 +1214,7 @@
   {/if}
   <SongHeader
     {song}
+    compact
     readOnly={readOnly || shared}
     {belowHeader}
     eyebrow={instrumentLabel(track.instrument)}
@@ -1326,6 +1358,7 @@
         <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
         <div
           class="paper score"
+          id="player-score"
           data-testid="player-score"
           data-hidden={ui.playerView === "highway" ? "true" : undefined}
           bind:this={scroller}

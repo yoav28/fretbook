@@ -243,6 +243,8 @@
   },
   "player": {
     "score": "Score",
+    "skipToScore": "Skip to tablature",
+    "practiceMode": "Practice",
     "play": "Play",
     "pause": "Pause",
     "tap": "Tap bar (T)",

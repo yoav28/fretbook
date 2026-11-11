@@ -243,6 +243,8 @@
   },
   "player": {
     "score": "Partitura",
+    "skipToScore": "Pular para a tablatura",
+    "practiceMode": "Prática",
     "play": "Tocar",
     "pause": "Pausar",
     "tap": "Marcar compasso (T)",
