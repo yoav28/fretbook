@@ -103,7 +103,7 @@
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
   /* Room the player's floating dock takes at the bottom of the viewport. */
-  --dock-space: calc(104px + var(--safe-b));
+  --dock-space: calc(128px + var(--safe-b));
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   font-family: var(--font-sans);
@@ -1886,11 +1886,17 @@ div.player-page .song-header .cover {
 
 .dock-bar {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: var(--r-lg);
+}
+
+.dock-primary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: clamp(0.75rem, 2vw, 1.5rem);
-  padding: 10px 14px;
-  border-radius: var(--r-lg);
+  min-width: 0;
 }
 
 .dock-transport,
@@ -2032,7 +2038,12 @@ div.player-page .song-header .cover {
 }
 
 .dock-secondary {
-  display: contents;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+  padding-left: 4px;
 }
 
 .dock-select {
@@ -2117,8 +2128,6 @@ div.player-page .song-header .cover {
 }
 
 @media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
-  /* One row attached to the bottom edge, padded for the home indicator. A thin progress line
-     runs along its top edge; loop, follow and full screen live in the ⋯ menu. */
   .dock {
     left: 0;
     right: 0;
@@ -2133,20 +2142,15 @@ div.player-page .song-header .cover {
 
   .dock-bar {
     position: relative;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 4px;
-    padding: 6px calc(8px + var(--safe-r)) calc(6px + var(--safe-b)) calc(8px + var(--safe-l));
+    gap: 2px;
+    padding: 4px calc(8px + var(--safe-r)) calc(6px + var(--safe-b)) calc(8px + var(--safe-l));
     border-width: 1px 0 0;
     border-radius: 0;
     box-shadow: 0 -6px 20px rgb(0 0 0 / 0.12);
   }
 
   .dock-progress {
-    position: absolute;
-    top: -1px;
-    right: 0;
-    left: 0;
-    padding: 0;
+    min-width: 0;
   }
 
   .dock-status {
@@ -2159,34 +2163,26 @@ div.player-page .song-header .cover {
   }
 
   .scrubber {
-    /* The thin line along the dock's top edge. Its bottom stays 1px above the
-       transport buttons: dock border 1px + padding 6px, minus this 16px box, minus a 1px gap. */
-    height: 16px;
-    margin-top: -10px;
+    height: 36px;
   }
 
   .scrubber input[type="range"] {
-    /* The base rule's min-height: 44px used to override height: 16px and cover the
-       top of Play, Prev, Next and Mute. Keep a 44px target and grow it upward only:
-       the track stays in the bottom 16px (the content box) and the padding above it
-       is the rest of the hit area, clear of the transport row. */
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    box-sizing: border-box;
-    width: 100%;
-    height: 44px;
-    min-height: 44px;
-    margin: 0;
-    padding: 28px 0 0;
-    /* A pill radius on this 44px box would clip the line, which sits at the bottom. */
-    border-radius: 0;
-    background-origin: content-box;
+    height: 36px;
+    min-height: 36px;
   }
 
   .dock-transport {
     justify-content: flex-start;
-    gap: 2px;
+    gap: 0;
+  }
+
+  .dock-primary {
+    gap: 8px;
+  }
+
+  .dock-secondary {
+    gap: 6px;
+    padding-left: 0;
   }
 
   .dock-tools {
@@ -2233,7 +2229,7 @@ div.player-page .song-header .cover {
   }
 
   :root {
-    --dock-space: calc(64px + var(--safe-b));
+    --dock-space: calc(112px + var(--safe-b));
   }
 
   .player-page {

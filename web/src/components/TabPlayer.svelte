@@ -694,7 +694,7 @@
   }
 
   function setVolume(value: number) {
-    playbackVolume = clamp01(value, 1);
+    playbackVolume = Math.round(clamp01(value, 1) / 0.05) * 0.05;
     muted = false;
     applyPractice();
   }
@@ -1414,126 +1414,113 @@
 
   <div class="dock" class:sheet-open={panelOpen && !handsFree.stage} bind:offsetHeight={dockHeight}>
     <div class="dock-bar">
-      <div class="dock-transport">
-        <IconButton
-          class="ghost"
-          icon="prev"
-          label={t("player.previousBar")}
-          testid="player-prev"
-          placement="above"
-          onclick={() => step(-1)}
-        />
-        <Tooltip text={playButtonLabel} placement="above">
-          {#snippet children(describedBy)}
-            <button
-              class="play-button"
-              data-testid="player-play"
-              data-playing={playing}
-              onclick={toggle}
-              aria-label={playButtonLabel}
-              aria-describedby={describedBy || undefined}
-            >
-              <Icon name={playing ? "pause" : "play"} size={24} />
-            </button>
-          {/snippet}
-        </Tooltip>
-        <IconButton
-          class="ghost"
-          icon="next"
-          label={t("player.nextBar")}
-          testid="player-next"
-          placement="above"
-          onclick={() => step(1)}
-        />
-        <DockVolume volume={playbackVolume} onchange={setVolume} />
-      </div>
+      <div class="dock-primary">
+        <div class="dock-transport">
+          <Tooltip text={playButtonLabel} placement="above">
+            {#snippet children(describedBy)}
+              <button
+                class="play-button"
+                data-testid="player-play"
+                data-playing={playing}
+                onclick={toggle}
+                aria-label={playButtonLabel}
+                aria-describedby={describedBy || undefined}
+              >
+                <Icon name={playing ? "pause" : "play"} size={24} />
+              </button>
+            {/snippet}
+          </Tooltip>
+        </div>
 
-      <div class="dock-progress">
-        <div class="dock-status">
-          <span data-testid="player-status" data-measure={currentMeasure}>
-            {#if currentMeasure >= 0 && currentMeasure < barCount}
-              {t("player.status", { measure: currentMeasure + 1, total: barCount, time: clock })}
-            {:else}
-              {t("player.statusIdle", { time: clock })}
+        <div class="dock-progress">
+          <div class="dock-status">
+            <span data-testid="player-status" data-measure={currentMeasure}>
+              {#if currentMeasure >= 0 && currentMeasure < barCount}
+                {t("player.status", { measure: currentMeasure + 1, total: barCount, time: clock })}
+              {:else}
+                {t("player.statusIdle", { time: clock })}
+              {/if}
+            </span>
+            {#if currentSection}
+              <span class="dock-section" title={currentSection}>{currentSection}</span>
             {/if}
-          </span>
-          {#if currentSection}
-            <span class="dock-section" title={currentSection}>{currentSection}</span>
-          {/if}
-          {#if saveLabel}<span class="muted">{saveLabel}</span>{/if}
-        </div>
-        <div class="scrubber">
-          {#if loopStyle}<span class="scrubber-loop" style={loopStyle}></span>{/if}
-          {#each marks as mark (mark.index)}
-            <span
-              class="scrubber-mark"
-              style="left:{(mark.index / Math.max(barCount, 1)) * 100}%"
-              aria-hidden="true"
-            ></span>
-          {/each}
-          <input
-            type="range"
-            min="0"
-            max={Math.max(0, barCount - 1)}
-            step="1"
-            value={Math.max(0, currentMeasure)}
-            style="--fill:{barCount > 1
-              ? (Math.max(0, currentMeasure) / (barCount - 1)) * 100
-              : 0}%"
-            aria-label={t("player.position")}
-            oninput={(event) => goToBar(Number(event.currentTarget.value))}
-          />
+            {#if saveLabel}<span class="muted">{saveLabel}</span>{/if}
+          </div>
+          <div class="scrubber">
+            {#if loopStyle}<span class="scrubber-loop" style={loopStyle}></span>{/if}
+            {#each marks as mark (mark.index)}
+              <span
+                class="scrubber-mark"
+                style="left:{(mark.index / Math.max(barCount, 1)) * 100}%"
+                aria-hidden="true"
+              ></span>
+            {/each}
+            <input
+              type="range"
+              min="0"
+              max={Math.max(0, barCount - 1)}
+              step="1"
+              value={Math.max(0, currentMeasure)}
+              style="--fill:{barCount > 1
+                ? (Math.max(0, currentMeasure) / (barCount - 1)) * 100
+                : 0}%"
+              aria-label={t("player.position")}
+              oninput={(event) => goToBar(Number(event.currentTarget.value))}
+            />
+          </div>
         </div>
       </div>
 
-      <div class="dock-tools">
-        {#if handsFree.stage}
-          <DockTextButton
-            icon="minimize"
-            label={t("handsFree.exitStage")}
-            testid="stage-exit"
-            onclick={() => {
-              panelOpen = false;
-              setStage(false);
-            }}
-          />
-        {/if}
-        <DockSpeed {rate} onchange={setRate} />
-        {#if !phone}
-          <DockTextButton
-            icon="repeat"
-            label={t("player.loop")}
-            testid="player-loop-toggle"
-            pressed={loopA != null && loopB != null}
-            onclick={toggleLoop}
-          />
-        {/if}
-        {#if !handsFree.stage}
-          <DockTextButton
-            icon="sliders"
-            label={t("playerSheet.label")}
-            testid="player-panel-toggle"
-            expanded={panelOpen}
-            controls={panelOpen ? "player-sheet" : undefined}
-            onclick={() => (panelOpen = !panelOpen)}
-          />
-        {/if}
-        {#if !phone}
-          <IconButton
-            class="ghost"
+      <div class="dock-secondary">
+        <DockVolume volume={playbackVolume} onchange={setVolume} />
+        <div class="dock-tools">
+          {#if handsFree.stage}
+            <DockTextButton
+              icon="minimize"
+              label={t("handsFree.exitStage")}
+              testid="stage-exit"
+              onclick={() => {
+                panelOpen = false;
+                setStage(false);
+              }}
+            />
+          {/if}
+          <DockSpeed {rate} onchange={setRate} />
+          {#if !phone}
+            <DockTextButton
+              icon="repeat"
+              label={t("player.loop")}
+              testid="player-loop-toggle"
+              pressed={loopA != null && loopB != null}
+              onclick={toggleLoop}
+            />
+          {/if}
+          {#if !handsFree.stage}
+            <DockTextButton
+              icon="sliders"
+              label={t("playerSheet.label")}
+              testid="player-panel-toggle"
+              expanded={panelOpen}
+              controls={panelOpen ? "player-sheet" : undefined}
+              onclick={() => (panelOpen = !panelOpen)}
+            />
+          {/if}
+          {#if !phone}
+            <IconButton
+              class="ghost"
+              placement="above"
+              icon="crosshair"
+              label={t("player.follow")}
+              pressed={follow}
+              onclick={() => setFollow(!follow)}
+            />
+          {/if}
+          <FullscreenToggle bind:this={fullscreenToggle} onbeforetoggle={trackScroll} />
+          <OverflowMenu
+            label={t("player.more")}
+            testid="player-more"
             placement="above"
-            icon="crosshair"
-            label={t("player.follow")}
-            pressed={follow}
-            onclick={() => setFollow(!follow)}
-          />
-        {/if}
-        <FullscreenToggle bind:this={fullscreenToggle} onbeforetoggle={trackScroll} />
-        <OverflowMenu
-          label={t("player.more")}
-          testid="player-more"
-          placement="above"
-          items={[
+            items={[
             ...(phone
               ? [
                   {
@@ -1571,8 +1558,9 @@
               testid: "player-shortcuts",
               onclick: () => (helpOpen = true),
             },
-          ]}
-        />
+            ]}
+          />
+        </div>
       </div>
     </div>
   </div>
