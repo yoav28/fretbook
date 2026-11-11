@@ -15,6 +15,7 @@
   import SegmentedControl from "./ui/SegmentedControl.svelte";
   import Tooltip from "./ui/Tooltip.svelte";
   import { sectionMarks } from "../lib/playerSheet";
+  import { readPlayerUrlState } from "../lib/playerUrl";
   import FullscreenToggle from "./FullscreenToggle.svelte";
   import { FULLSCREEN_ATTRIBUTE, fullscreenScale, layoutFocused } from "../lib/fullscreen";
   import AutoSyncSheet from "./AutoSyncSheet.svelte";
@@ -73,6 +74,10 @@
 
   // The player owns its copy: taps, BPM edits, and uploads change it in place.
   let song = $state(untrack(() => initial));
+  const initialUrl = readPlayerUrlState(
+    typeof location === "undefined" ? "" : location.search,
+    initial.document.tracks,
+  );
 
   let error = $state("");
   let host = $state<HTMLDivElement | null>(null);
@@ -81,7 +86,9 @@
   let pausedAudioSeek: { measure: number; position: number; seconds: number } | null = null;
   // For tests: whether the synth beside the recording is off, loading, ready or sounding.
   let synthState = $state<"off" | "loading" | "ready" | "playing">("off");
-  let trackId = $state(untrack(() => song.preferred_track_id || preferredTrack(song.document).id));
+  let trackId = $state(
+    untrack(() => initialUrl.trackId || song.preferred_track_id || preferredTrack(song.document).id),
+  );
   let scoreReady = $state(0);
   let retuneOpen = $state(false);
   let autoSyncOpen = $state(false);
@@ -99,9 +106,9 @@
   let loopB = $state<number | null>(null);
   let practice = $state(untrack(() => loadPractice(initial.id)));
   let activeLoopId = $state<string | null>(null);
-  let follow = $state(true);
-  let rate = $state(1);
-  let currentMeasure = $state(-1);
+  let follow = $state(initialUrl.follow ?? true);
+  let rate = $state(initialUrl.speed ?? 1);
+  let currentMeasure = $state(initialUrl.bar ?? -1);
   let dockHeight = $state(0);
   // Ticks into the current played bar, for the fretboard.
   let currentPosition = $state(0);
@@ -109,47 +116,52 @@
   let currentSeconds = $state(0);
   let clock = $state("0:00.0");
   let playing = $state(false);
-  let muted = $state(false);
-  let playbackVolume = $state(1);
+  let muted = $state(initialUrl.muted ?? false);
+  let playbackVolume = $state(initialUrl.volume ?? 1);
+  let urlReady = false;
   let helpOpen = $state(false);
   let saveLabel = $state("");
   let saveTimer = 0;
   let pendingSync: (() => Promise<void>) | null = null;
 
-  function updatePlayingOutline(
-    element: HTMLDivElement,
-    instance: alphaTab.AlphaTabApi,
-    beat: alphaTab.model.Beat,
-  ) {
-    if (!beat.notes.length) {
-      element.querySelector(".at-playing-outline")?.remove();
-      return;
-    }
-    const bounds = instance.boundsLookup?.findBeat(beat);
-    if (!bounds) return;
-    const staff = bounds.barBounds.visualBounds;
-    let outline = element.querySelector<SVGSVGElement>(".at-playing-outline");
-    if (!outline) {
-      outline = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      outline.setAttribute("class", "at-playing-outline");
-      outline.setAttribute("viewBox", "0 0 40 180");
-      outline.setAttribute("preserveAspectRatio", "none");
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute(
-        "d",
-        "M20 2 C31 2 38 11 38 22 V138 C38 154 31 168 20 178 C9 168 2 154 2 138 V22 C2 11 9 2 20 2 Z",
-      );
-      outline.appendChild(path);
-      element.appendChild(outline);
-    }
-    outline.style.left = `${bounds.onNotesX - 10}px`;
-    outline.style.top = `${staff.y - 14}px`;
-    outline.style.width = "20px";
-    outline.style.height = `${staff.h + 26}px`;
-  }
-
   $effect(() => {
     if (playing || handsFree.stage) return keepAwake();
+  });
+
+  $effect(() => {
+    const track = trackId;
+    const speed = rate;
+    const volume = playbackVolume;
+    const isMuted = muted;
+    const bar = currentMeasure;
+    const view = ui.playerView;
+    const notation = ui.notation;
+    const shouldFollow = follow;
+    if (!urlReady) return;
+    const url = new URL(location.href);
+    const params = url.searchParams;
+    const preferred = song.preferred_track_id || preferredTrack(song.document).id;
+    if (track === preferred) params.delete("track");
+    else params.set("track", track);
+    if (speed === 1) params.delete("speed");
+    else params.set("speed", String(Number(speed.toFixed(2))));
+    if (volume === 1) params.delete("volume");
+    else params.set("volume", String(Number(volume.toFixed(2))));
+    if (isMuted) params.set("muted", "1");
+    else params.delete("muted");
+    if (bar < 0) params.delete("bar");
+    else params.set("bar", String(bar + 1));
+    if (view === "tab") params.delete("view");
+    else params.set("view", view);
+    if (notation) params.set("notation", "1");
+    else params.delete("notation");
+    if (shouldFollow) params.delete("follow");
+    else params.set("follow", "0");
+    history.replaceState(
+      history.state,
+      "",
+      `${url.pathname}${params.size ? `?${params}` : ""}${url.hash}`,
+    );
   });
 
   const document_ = $derived(song.document);
@@ -483,7 +495,6 @@
     });
     // Without audio, alphaTab's own events say where playback is, tempo changes included.
     instance.playedBeatChanged.on((beat) => {
-      updatePlayingOutline(element, instance, beat);
       if (useAudio) return;
       currentMeasure = followPlayed(
         playedBars(untrack(() => song.document.bars)),
@@ -539,7 +550,6 @@
       chromeWatch.disconnect();
       chromeMutations.disconnect();
       window.removeEventListener("resize", refreshOffset);
-      element.querySelector(".at-playing-outline")?.remove();
       instance.destroy();
       // This instance is no longer playing. Speed and the bar are put back on the next
       // one. A recording that is still running paints the button from its own clock.
@@ -592,6 +602,9 @@
   });
 
   onMount(() => {
+    if (initialUrl.view) setPlayerView(initialUrl.view);
+    if (initialUrl.notation !== null) setNotation(initialUrl.notation);
+    urlReady = true;
     if (typeof location !== "undefined") {
       const params = new URLSearchParams(location.search);
       const loopParam = params.get("loop");
@@ -728,7 +741,7 @@
   }
 
   function setVolume(value: number) {
-    playbackVolume = clamp01(value, 1);
+    playbackVolume = Math.round(clamp01(value, 1) / 0.05) * 0.05;
     muted = false;
     applyPractice();
   }
@@ -847,7 +860,6 @@
       );
       clock = formatTime(currentSeconds);
     }
-    updatePlayingOutline(element, instance, beat);
   }
 
   function tap() {
@@ -1449,126 +1461,113 @@
 
   <div class="dock" class:sheet-open={panelOpen && !handsFree.stage} bind:offsetHeight={dockHeight}>
     <div class="dock-bar">
-      <div class="dock-transport">
-        <IconButton
-          class="ghost"
-          icon="prev"
-          label={t("player.previousBar")}
-          testid="player-prev"
-          placement="above"
-          onclick={() => step(-1)}
-        />
-        <Tooltip text={playButtonLabel} placement="above">
-          {#snippet children(describedBy)}
-            <button
-              class="play-button"
-              data-testid="player-play"
-              data-playing={playing}
-              onclick={toggle}
-              aria-label={playButtonLabel}
-              aria-describedby={describedBy || undefined}
-            >
-              <Icon name={playing ? "pause" : "play"} size={24} />
-            </button>
-          {/snippet}
-        </Tooltip>
-        <IconButton
-          class="ghost"
-          icon="next"
-          label={t("player.nextBar")}
-          testid="player-next"
-          placement="above"
-          onclick={() => step(1)}
-        />
-        <DockVolume volume={playbackVolume} onchange={setVolume} />
-      </div>
+      <div class="dock-primary">
+        <div class="dock-transport">
+          <Tooltip text={playButtonLabel} placement="above">
+            {#snippet children(describedBy)}
+              <button
+                class="play-button"
+                data-testid="player-play"
+                data-playing={playing}
+                onclick={toggle}
+                aria-label={playButtonLabel}
+                aria-describedby={describedBy || undefined}
+              >
+                <Icon name={playing ? "pause" : "play"} size={24} />
+              </button>
+            {/snippet}
+          </Tooltip>
+        </div>
 
-      <div class="dock-progress">
-        <div class="dock-status">
-          <span data-testid="player-status" data-measure={currentMeasure}>
-            {#if currentMeasure >= 0 && currentMeasure < barCount}
-              {t("player.status", { measure: currentMeasure + 1, total: barCount, time: clock })}
-            {:else}
-              {t("player.statusIdle", { time: clock })}
+        <div class="dock-progress">
+          <div class="dock-status">
+            <span data-testid="player-status" data-measure={currentMeasure}>
+              {#if currentMeasure >= 0 && currentMeasure < barCount}
+                {t("player.status", { measure: currentMeasure + 1, total: barCount, time: clock })}
+              {:else}
+                {t("player.statusIdle", { time: clock })}
+              {/if}
+            </span>
+            {#if currentSection}
+              <span class="dock-section" title={currentSection}>{currentSection}</span>
             {/if}
-          </span>
-          {#if currentSection}
-            <span class="dock-section" title={currentSection}>{currentSection}</span>
-          {/if}
-          {#if saveLabel}<span class="muted">{saveLabel}</span>{/if}
-        </div>
-        <div class="scrubber">
-          {#if loopStyle}<span class="scrubber-loop" style={loopStyle}></span>{/if}
-          {#each marks as mark (mark.index)}
-            <span
-              class="scrubber-mark"
-              style="left:{(mark.index / Math.max(barCount, 1)) * 100}%"
-              aria-hidden="true"
-            ></span>
-          {/each}
-          <input
-            type="range"
-            min="0"
-            max={Math.max(0, barCount - 1)}
-            step="1"
-            value={Math.max(0, currentMeasure)}
-            style="--fill:{barCount > 1
-              ? (Math.max(0, currentMeasure) / (barCount - 1)) * 100
-              : 0}%"
-            aria-label={t("player.position")}
-            oninput={(event) => goToBar(Number(event.currentTarget.value))}
-          />
+            {#if saveLabel}<span class="muted">{saveLabel}</span>{/if}
+          </div>
+          <div class="scrubber">
+            {#if loopStyle}<span class="scrubber-loop" style={loopStyle}></span>{/if}
+            {#each marks as mark (mark.index)}
+              <span
+                class="scrubber-mark"
+                style="left:{(mark.index / Math.max(barCount, 1)) * 100}%"
+                aria-hidden="true"
+              ></span>
+            {/each}
+            <input
+              type="range"
+              min="0"
+              max={Math.max(0, barCount - 1)}
+              step="1"
+              value={Math.max(0, currentMeasure)}
+              style="--fill:{barCount > 1
+                ? (Math.max(0, currentMeasure) / (barCount - 1)) * 100
+                : 0}%"
+              aria-label={t("player.position")}
+              oninput={(event) => goToBar(Number(event.currentTarget.value))}
+            />
+          </div>
         </div>
       </div>
 
-      <div class="dock-tools">
-        {#if handsFree.stage}
-          <DockTextButton
-            icon="minimize"
-            label={t("handsFree.exitStage")}
-            testid="stage-exit"
-            onclick={() => {
-              panelOpen = false;
-              setStage(false);
-            }}
-          />
-        {/if}
-        <DockSpeed {rate} onchange={setRate} />
-        {#if !phone}
-          <DockTextButton
-            icon="repeat"
-            label={t("player.loop")}
-            testid="player-loop-toggle"
-            pressed={loopA != null && loopB != null}
-            onclick={toggleLoop}
-          />
-        {/if}
-        {#if !handsFree.stage}
-          <DockTextButton
-            icon="sliders"
-            label={t("playerSheet.label")}
-            testid="player-panel-toggle"
-            expanded={panelOpen}
-            controls={panelOpen ? "player-sheet" : undefined}
-            onclick={() => (panelOpen = !panelOpen)}
-          />
-        {/if}
-        {#if !phone}
-          <IconButton
-            class="ghost"
+      <div class="dock-secondary">
+        <DockVolume volume={playbackVolume} onchange={setVolume} />
+        <div class="dock-tools">
+          {#if handsFree.stage}
+            <DockTextButton
+              icon="minimize"
+              label={t("handsFree.exitStage")}
+              testid="stage-exit"
+              onclick={() => {
+                panelOpen = false;
+                setStage(false);
+              }}
+            />
+          {/if}
+          <DockSpeed {rate} onchange={setRate} />
+          {#if !phone}
+            <DockTextButton
+              icon="repeat"
+              label={t("player.loop")}
+              testid="player-loop-toggle"
+              pressed={loopA != null && loopB != null}
+              onclick={toggleLoop}
+            />
+          {/if}
+          {#if !handsFree.stage}
+            <DockTextButton
+              icon="sliders"
+              label={t("playerSheet.label")}
+              testid="player-panel-toggle"
+              expanded={panelOpen}
+              controls={panelOpen ? "player-sheet" : undefined}
+              onclick={() => (panelOpen = !panelOpen)}
+            />
+          {/if}
+          {#if !phone}
+            <IconButton
+              class="ghost"
+              placement="above"
+              icon="crosshair"
+              label={t("player.follow")}
+              pressed={follow}
+              onclick={() => setFollow(!follow)}
+            />
+          {/if}
+          <FullscreenToggle bind:this={fullscreenToggle} onbeforetoggle={trackScroll} />
+          <OverflowMenu
+            label={t("player.more")}
+            testid="player-more"
             placement="above"
-            icon="crosshair"
-            label={t("player.follow")}
-            pressed={follow}
-            onclick={() => setFollow(!follow)}
-          />
-        {/if}
-        <FullscreenToggle bind:this={fullscreenToggle} onbeforetoggle={trackScroll} />
-        <OverflowMenu
-          label={t("player.more")}
-          testid="player-more"
-          placement="above"
-          items={[
+            items={[
             ...(phone
               ? [
                   {
@@ -1606,8 +1605,9 @@
               testid: "player-shortcuts",
               onclick: () => (helpOpen = true),
             },
-          ]}
-        />
+            ]}
+          />
+        </div>
       </div>
     </div>
   </div>

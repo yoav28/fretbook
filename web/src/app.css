@@ -103,7 +103,7 @@
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
   /* Room the player's floating dock takes at the bottom of the viewport. */
-  --dock-space: calc(104px + var(--safe-b));
+  --dock-space: calc(128px + var(--safe-b));
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   font-family: var(--font-sans);
