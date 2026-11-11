@@ -871,7 +871,7 @@
       if (event.code === "Space" || event.key === " " || event.key === "Spacebar") {
         event.preventDefault();
         event.stopPropagation();
-        perform("toggle");
+        if (!event.repeat) perform("toggle");
         return;
       }
       const target = event.target as HTMLElement | null;
@@ -909,8 +909,14 @@
       event.stopPropagation();
       perform(action);
     };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== "Space" && event.key !== " " && event.key !== "Spacebar") return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
     const metronome = window.setInterval(tickMetronome, 25);
     document.addEventListener("keydown", onKey, true);
+    document.addEventListener("keyup", onKeyUp, true);
     return () => {
       window.clearInterval(timer);
       window.clearInterval(metronome);
@@ -919,6 +925,7 @@
       waitRun?.stop();
       scoreRun?.stop();
       document.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("keyup", onKeyUp, true);
       // Leaving the page must not lose a tap that is still waiting to be saved.
       void flushSync();
     };
