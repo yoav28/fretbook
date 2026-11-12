@@ -6,13 +6,14 @@ const press = (key: string, extra: Partial<Parameters<typeof shortcutFor>[0]> = 
   shortcutFor({ key, ctrlKey: false, metaKey: false, altKey: false, ...extra });
 
 describe("shortcuts", () => {
-  it("maps keys to actions, and ? (which needs Shift) to help", () => {
+  it("maps player controls and ? to help", () => {
     expect(press(" ")).toBe("toggle");
-    expect(press("m")).toBe("metronome");
-    expect(press("M")).toBe("metronome");
-    expect(press("c")).toBe("countIn");
+    expect(press("ArrowLeft")).toBe("previousBar");
+    expect(press("ArrowRight")).toBe("nextBar");
+    expect(press("t")).toBe("tap");
     expect(press("?")).toBe("help");
     expect(press("=")).toBe("volumeUp");
+    expect(press("m")).toBeNull();
     expect(press("q")).toBeNull();
   });
 

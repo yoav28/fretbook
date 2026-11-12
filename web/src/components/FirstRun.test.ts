@@ -1,21 +1,13 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
+import { fireEvent, render, screen } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import FirstRun from "./FirstRun.svelte";
 import { ui } from "../lib/ui.svelte";
 
-const mockAddDemo = vi.fn();
 const mockSaveSettings = vi.fn();
-const mockListSongs = vi.fn();
 
 vi.mock("../lib/api", () => ({
-  addDemo: () => mockAddDemo(),
   saveSettings: (...args: unknown[]) => mockSaveSettings(...args),
-  listSongs: (...args: unknown[]) => mockListSongs(...args),
-  listTags: async () => [],
-  getFacets: async () => ({ keys: [], genres: [] }),
-  // Reaching the network from a component test is a bug.
-  getMeta: vi.fn(),
-  getMe: vi.fn(),
 }));
 
 const presets = [
@@ -23,78 +15,35 @@ const presets = [
   { id: "guitar-6", label_key: "y", label: "6-string guitar", family: "guitar" },
 ];
 
-function meWith(lessons: boolean) {
-  return {
-    user_id: "u",
-    display_name: "U",
-    email: "",
-    authenticated: false,
-    role: "user",
-    settings: { default_instrument: "bass-4", lessons_enabled: lessons },
-  } as typeof ui.me;
-}
-
 describe("FirstRun", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ui.presets = presets as typeof ui.presets;
     ui.defaultInstrument = "bass-4";
     ui.sheet = "";
-    ui.me = meWith(true);
-    mockListSongs.mockResolvedValue({
-      items: [],
-      total: 0,
-      counts: { all: 0, bass: 0, electric: 0, acoustic: 0, chords: 0, favourites: 0 },
-      next_cursor: null,
-    });
+    mockSaveSettings.mockResolvedValue({ default_instrument: "guitar-6" });
   });
 
-  it("opens the add sheet and the tuner", async () => {
+  it("opens the add sheet from the empty-library welcome", async () => {
     render(FirstRun);
     await fireEvent.click(screen.getByRole("button", { name: "New" }));
     expect(ui.sheet).toBe("add");
-    await fireEvent.click(screen.getByRole("button", { name: "Open the tuner" }));
-    expect(ui.sheet).toBe("tuner");
   });
 
-  it("adds the demo songs and reloads the library", async () => {
-    mockAddDemo.mockResolvedValue({ songs: [], installed: 3, changed: 3 });
+  it("saves the chosen default instrument", async () => {
     render(FirstRun);
-    await fireEvent.click(screen.getByTestId("first-run-add-demo"));
-    await waitFor(() => expect(mockListSongs).toHaveBeenCalled());
-    expect(mockAddDemo).toHaveBeenCalledTimes(1);
+    const instrument = screen.getByRole("combobox", { name: "Default instrument" });
+    await fireEvent.change(instrument, { target: { value: "guitar-6" } });
+    expect(mockSaveSettings).toHaveBeenCalledWith({ default_instrument: "guitar-6" });
+    expect(instrument).toHaveValue("guitar-6");
   });
 
-  it("shows the error when the demo songs cannot be added", async () => {
-    mockAddDemo.mockRejectedValue(new Error("boom"));
+  it("explains when saving the default instrument fails", async () => {
+    mockSaveSettings.mockRejectedValueOnce(new Error("boom"));
     render(FirstRun);
-    await fireEvent.click(screen.getByTestId("first-run-add-demo"));
+    await fireEvent.change(screen.getByRole("combobox", { name: "Default instrument" }), {
+      target: { value: "guitar-6" },
+    });
     expect(await screen.findByRole("alert")).toHaveTextContent("boom");
-    expect(screen.getByTestId("first-run-add-demo")).toBeEnabled();
-  });
-
-  it("hides the course card while Lessons is off", () => {
-    ui.me = meWith(false);
-    render(FirstRun);
-    expect(screen.queryByTestId("first-run-course")).not.toBeInTheDocument();
-  });
-
-  it("saves the instrument and points the course at it", async () => {
-    mockSaveSettings.mockResolvedValue({ default_instrument: "guitar-6" });
-    render(FirstRun);
-    expect(screen.getByRole("link")).toHaveAttribute(
-      "href",
-      expect.stringMatching(/bass-first-steps$/),
-    );
-    await fireEvent.change(screen.getByRole("combobox"), { target: { value: "guitar-6" } });
-    await waitFor(() =>
-      expect(mockSaveSettings).toHaveBeenCalledWith({ default_instrument: "guitar-6" }),
-    );
-    await waitFor(() =>
-      expect(screen.getByRole("link")).toHaveAttribute(
-        "href",
-        expect.stringMatching(/guitar-first-steps$/),
-      ),
-    );
   });
 });

@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
 
-  // Shown on hover and on keyboard focus. Rendered only while visible so a
+  // Shown on hover. Rendered only while visible so a
   // resting page does not carry a stack of hidden tooltips.
   let {
     text,
@@ -84,29 +84,6 @@
     open = false;
   }
 
-  function handleFocusIn(event: FocusEvent) {
-    const target = event.target as HTMLElement | null;
-    if (
-      typeof CSS !== "undefined" &&
-      typeof CSS.supports === "function" &&
-      CSS.supports("selector(:focus-visible)")
-    ) {
-      if (target?.matches?.(":focus-visible")) {
-        touchActive = false;
-        open = true;
-      }
-      return;
-    }
-    // Fallback for test environments (e.g. jsdom) where :focus-visible is not implemented:
-    if (!touchActive && canHover()) {
-      open = true;
-    }
-  }
-
-  function handleFocusOut() {
-    open = false;
-  }
-
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "Escape" && open) {
       open = false;
@@ -126,8 +103,6 @@
   onpointerleave={handlePointerLeave}
   onmouseenter={handleMouseEnter}
   onmouseleave={handleMouseLeave}
-  onfocusin={handleFocusIn}
-  onfocusout={handleFocusOut}
   onkeydown={handleKeyDown}
 >
   {@render children(open ? tipId : "")}
@@ -170,9 +145,4 @@
     bottom: calc(100% + var(--sp-2));
   }
 
-  @media (hover: none) {
-    .tip:not(:has(:focus-visible)) .bubble {
-      display: none;
-    }
-  }
 </style>

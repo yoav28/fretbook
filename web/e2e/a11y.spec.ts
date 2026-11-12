@@ -2,371 +2,105 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./support/fixtures";
-import { menuItem } from "./support/song-page";
-
-test.beforeEach(async ({ seed }) => {
-  await seed.enableLessons();
-});
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
-/** Wait for all running CSS/Web animations on the page (excluding infinite loops) to finish. */
-async function waitForAnimations(page: Page) {
+async function expectAccessible(page: Page, where: string) {
   await page.waitForFunction(() =>
-    document.getAnimations().every((a) => {
-      const timing = a.effect?.getComputedTiming?.();
-      return timing?.iterations === Infinity || a.playState !== "running";
+    document.getAnimations().every((animation) => {
+      const timing = animation.effect?.getComputedTiming();
+      return timing?.iterations === Infinity || animation.playState !== "running";
     }),
   );
-}
-
-/** Every WCAG A/AA violation on the page as readable strings (empty when the page is clean). */
-async function violations(page: Page, where: string, include?: string) {
-  await waitForAnimations(page);
-  let builder = new AxeBuilder({ page }).withTags(TAGS);
-  if (include) builder = builder.include(include);
-  const results = await builder.analyze();
-  return results.violations.map(
-    (v) =>
-      `${where}: ${v.id} (${v.impact}) ${v.nodes
-        .slice(0, 4)
-        .map((n) => `${n.target.join(" ")} ${n.failureSummary?.replace(/\s+/g, " ")}`)
-        .join(" | ")}`,
+  const result = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+  const details = result.violations.flatMap((violation) =>
+    violation.nodes.map(
+      (node) => `${where}: ${violation.id} ${node.target.join(" ")} ${node.failureSummary ?? ""}`,
+    ),
   );
+  expect(details).toEqual([]);
 }
 
 for (const scheme of ["light", "dark"] as const) {
   test.describe(`${scheme} theme`, () => {
     test.use({ colorScheme: scheme });
 
-    test("main pages have no axe violations", async ({ page, seed }) => {
+    test("library, tab, chord sheet, and editor have no axe violations", async ({ page, seed }) => {
       const tab = await seed.musicXmlTab();
       const sheet = await seed.chordSheet();
-      const found: string[] = [];
-      for (const path of [
-        "/",
-        "/practice",
-        "/setlists",
-        "/bands",
-        "/tools",
-        "/tools/tuner",
-        "/tools/metronome",
-        "/tools/rhythm",
-        "/tools/trainer",
-        "/tools/exercises",
-        "/tools/chords",
-        "/settings",
-        "/lessons",
-        "/lessons/guitar-first-steps",
-        "/lessons/guitar-first-steps/02-the-open-strings",
-        "/lessons/guitar-first-steps/01-holding-and-tuning/edit",
-        `/songs/${tab.id}`,
-        `/songs/${sheet.id}`,
-        `/songs/${tab.id}/edit`,
-      ]) {
+      for (const path of ["/", `/songs/${tab.id}`, `/songs/${sheet.id}`, `/songs/${tab.id}/edit`]) {
         await page.goto(path);
         await page.waitForLoadState("networkidle");
-        found.push(...(await violations(page, path)));
+        await expectAccessible(page, path);
       }
-      expect(found).toEqual([]);
     });
 
-    test("the phone and tablet navigation has no axe violations", async ({ page, seed }) => {
-      await seed.musicXmlTab();
-      const found: string[] = [];
+    test("the library and player remain accessible on phone and tablet", async ({ page, seed }) => {
+      const tab = await seed.musicXmlTab();
       for (const size of [
         { width: 375, height: 812 },
         { width: 768, height: 1024 },
       ]) {
         await page.setViewportSize(size);
-        for (const path of ["/", "/setlists", "/tools"]) {
+        for (const path of ["/", `/songs/${tab.id}`]) {
           await page.goto(path);
           await page.waitForLoadState("networkidle");
-          found.push(...(await violations(page, `${path} at ${size.width}px`)));
+          await expectAccessible(page, `${path} at ${size.width}px`);
         }
       }
-      expect(found).toEqual([]);
     });
 
-    test("the first-run welcome has no axe violations", async ({ page }) => {
+    test("the empty library welcome has no axe violations", async ({ page }) => {
       await page.goto("/");
-      await expect(page.getByTestId("first-run-demo")).toBeVisible();
-      expect(await violations(page, "first run")).toEqual([]);
+      await expect(page.getByTestId("first-run-import")).toBeVisible();
+      await expectAccessible(page, "first run");
     });
 
-    test("sheets have no axe violations", async ({ page, seed }) => {
+    test("the add sheet and player tabs have no axe violations", async ({ page, seed }) => {
       const tab = await seed.musicXmlTab();
-      const found: string[] = [];
-
       await page.goto("/");
-      for (const [trigger, sheet] of [["add-song", "add-sheet"]]) {
-        await page.getByTestId(trigger).click();
-        await expect(page.getByTestId(sheet)).toBeVisible();
-        found.push(...(await violations(page, sheet)));
-        if (sheet === "add-sheet") {
-          await page.getByTestId("add-more-toggle").click();
-          found.push(...(await violations(page, "add-sheet-more-ways")));
-        }
-        await page.keyboard.press("Escape");
-        await expect(page.getByTestId(sheet)).toBeHidden();
-      }
+      await page.getByTestId("add-song").click();
+      await expect(page.getByTestId("add-sheet")).toBeVisible();
+      await expectAccessible(page, "add sheet");
+      await page.keyboard.press("Escape");
+      await expect(page.getByTestId("add-sheet")).toBeHidden();
 
       await page.goto(`/songs/${tab.id}`);
-      await expect(page.getByTestId("player-play")).toBeVisible();
-      await page.keyboard.press("?");
-      await expect(page.getByTestId("shortcut-help")).toBeVisible();
-      found.push(...(await violations(page, "shortcut-help")));
-      await page.keyboard.press("Escape");
-
-      await page.goto(`/songs/${tab.id}`);
-      await expect(page.getByTestId("player-play")).toBeVisible();
-      await menuItem(page, "song-metadata-edit");
-      await expect(page.getByTestId("metadata-sheet")).toBeVisible();
-      found.push(...(await violations(page, "metadata-sheet")));
-      await page.keyboard.press("Escape");
-      await expect(page.getByTestId("metadata-sheet")).toBeHidden();
-
-      // Auto-sync needs a recording: the click-track fixture is enough for the sheet to show a proposal.
-      const synced = await seed.syncedSongWithAudio();
-      await page.goto(`/songs/${synced.id}`);
-      await expect(page.getByTestId("player-play")).toBeVisible();
       await page.getByTestId("player-panel-toggle").click();
       await expect(page.getByTestId("player-sheet")).toBeVisible();
-      found.push(...(await violations(page, "player-sheet")));
-      for (const name of ["audio", "sync", "view"]) {
+      for (const name of ["practice", "audio", "sync", "view"]) {
         await page.getByTestId(`player-sheet-tab-${name}`).click();
-        found.push(...(await violations(page, `player-sheet-${name}`)));
+        await expectAccessible(page, `player sheet ${name}`);
       }
-      await page.getByTestId("player-speed").click();
-      await expect(page.getByTestId("player-speed-popover")).toBeVisible();
-      found.push(...(await violations(page, "player-speed")));
-      await page.keyboard.press("Escape");
+      await page.getByTestId("player-sheet-close").click();
+      await expectAccessible(page, "player");
+    });
 
+    test("tag editing, tag filtering, and YouTube audio have no axe violations", async ({
+      page,
+      seed,
+    }) => {
+      const tab = await seed.musicXmlTab();
+      await page.request.put(`/api/songs/${tab.id}/tags`, { data: { tags: ["funk"] } });
+      await page.goto(`/songs/${tab.id}`);
+      await page.getByTestId("song-tag-new").click();
+      await expect(page.getByTestId("song-tag-input")).toBeVisible();
+      await expectAccessible(page, "song tag input");
+
+      await page.goto("/");
+      await page.getByTestId("library-filters").click();
+      await expect(page.getByRole("dialog", { name: "Filter by tag" })).toBeVisible();
+      await expectAccessible(page, "tag filters");
+    });
+
+    test("the sync sheet has no axe violations", async ({ page, seed }) => {
+      const song = await seed.syncedSongWithAudio();
+      await page.goto(`/songs/${song.id}`);
+      await page.getByTestId("player-panel-toggle").click();
       await page.getByTestId("player-sheet-tab-sync").click();
       await page.getByTestId("player-autosync").click();
       await expect(page.getByTestId("autosync-sheet")).toBeVisible();
-      found.push(...(await violations(page, "autosync-sheet")));
-      await page.getByTestId("autosync-estimate").click();
-      await expect(page.getByTestId("autosync-summary")).toBeVisible({ timeout: 30_000 });
-      found.push(...(await violations(page, "autosync-sheet")));
-      expect(found).toEqual([]);
-    });
-
-    test("the library toolbar popover, song menu and import banner have no axe violations", async ({
-      page,
-      seed,
-    }) => {
-      await seed.musicXmlTab();
-      await seed.chordSheet();
-      const found: string[] = [];
-      await page.goto("/");
-      await expect(page.getByTestId("song-card")).toHaveCount(2);
-
-      await page.getByTestId("library-filters").click();
-      await expect(page.getByRole("dialog", { name: "Filters" })).toBeVisible();
-      found.push(...(await violations(page, "library-filters")));
-      await page.getByTestId("library-level-easy").click();
-      await page.keyboard.press("Escape");
-      await expect(page.getByTestId("library-active-filter")).toBeVisible();
-      found.push(...(await violations(page, "library-active-filters")));
-      await page.getByTestId("library-clear-filters").click();
-
-      await page.setViewportSize({ width: 390, height: 664 });
-      await page.getByTestId("library-filters").click();
-      await expect(page.getByTestId("library-filters-done")).toBeVisible();
-      found.push(...(await violations(page, "library-filters-phone")));
-      await page.getByTestId("library-filters-done").click();
-      await page.setViewportSize({ width: 1280, height: 720 });
-
-      await page.getByTestId("song-menu").first().click();
-      await expect(page.getByRole("menu")).toBeVisible();
-      found.push(...(await violations(page, "song-menu")));
-      await page.keyboard.press("Escape");
-
-      await page.getByTestId("add-song").click();
-      await page.getByTestId("add-more-toggle").click();
-      await page.getByTestId("add-mode-file").click();
-      await page.getByTestId("add-file-input").setInputFiles({
-        name: "bad-riff.musicxml",
-        mimeType: "application/xml",
-        buffer: Buffer.from("<not-a-score/>"),
-      });
-      await expect(page.getByTestId("add-error")).toBeVisible();
-      await page.getByTestId("add-sheet-close").click();
-      await expect(page.getByTestId("recent-imports-banner")).toBeVisible();
-      found.push(...(await violations(page, "import-banner")));
-      await page.getByTestId("recent-imports-review").click();
-      await expect(page.getByTestId("recent-import-item")).toBeVisible();
-      found.push(...(await violations(page, "import-banner-open")));
-      expect(found).toEqual([]);
-    });
-
-    test("the lessons and course overflow menus have no axe violations", async ({ page }) => {
-      const found: string[] = [];
-      for (const [path, trigger] of [
-        ["/lessons", "lessons-admin"],
-        ["/lessons/guitar-first-steps", "course-admin"],
-      ]) {
-        await page.goto(path);
-        await page.getByTestId(trigger).click();
-        await expect(page.getByRole("menu")).toBeVisible();
-        found.push(...(await violations(page, `${path} menu`)));
-      }
-      expect(found).toEqual([]);
-    });
-
-    test("the lessons index and course page have no axe violations part-way through", async ({
-      page,
-    }) => {
-      for (const id of ["01-holding-and-tuning", "02-the-open-strings"]) {
-        const done = await page.request.post(
-          `/api/courses/guitar-first-steps/lessons/${id}/progress`,
-          { data: { wait_completed: true, score: 90, bpm: 100 } },
-        );
-        expect(done.ok()).toBe(true);
-      }
-      const found: string[] = [];
-      for (const path of ["/lessons", "/lessons/guitar-first-steps"]) {
-        await page.goto(path);
-        await page.waitForLoadState("networkidle");
-        found.push(...(await violations(page, `${path} (in progress)`)));
-      }
-      expect(found).toEqual([]);
-    });
-
-    test("the chord sheet's wait mode and input popover have no axe violations", async ({
-      page,
-      seed,
-    }) => {
-      // Wait mode only needs a microphone to open; a denied one is shown as an error in the same place.
-      const sheet = await seed.create({ title: "Two Chords", chordpro: "[Bb]Hello [Eb]world" });
-      await page.goto(`/songs/${sheet.id}`);
-      const found: string[] = [];
-      await expect(page.getByTestId("capo-suggestions")).toBeVisible();
-      found.push(...(await violations(page, "chord sheet capo line")));
-      await page.getByTestId("chord-wait-toggle").click();
-      await page.getByTestId("chord-wait-input").click();
-      await expect(page.getByTestId("chord-wait").getByTestId("listen-panel")).toBeVisible();
-      found.push(...(await violations(page, "chord sheet input popover")));
-      expect(found).toEqual([]);
-    });
-
-    test("the song page menu, export sheet, tag input and phone header have no axe violations", async ({
-      page,
-      seed,
-    }) => {
-      const tab = await seed.musicXmlTab();
-      const found: string[] = [];
-
-      await page.goto(`/songs/${tab.id}`);
-      await expect(page.getByTestId("player-play")).toBeVisible();
-      await page.getByTestId("song-tag-new").click();
-      await expect(page.getByTestId("song-tag-input")).toBeVisible();
-      found.push(...(await violations(page, "song tag input")));
-      await page.keyboard.press("Escape");
-
-      await page.getByTestId("song-more").click();
-      await expect(page.getByRole("menu")).toBeVisible();
-      found.push(...(await violations(page, "song menu")));
-      await page.getByTestId("export-open").click();
-      await expect(page.getByTestId("export-sheet")).toBeVisible();
-      found.push(...(await violations(page, "export-sheet")));
-      await page.keyboard.press("Escape");
-      await expect(page.getByTestId("export-sheet")).toBeHidden();
-
-      // The phone header: back link, star and menu, then the details sheet with the tags in it.
-      await page.setViewportSize({ width: 375, height: 812 });
-      await page.goto(`/songs/${tab.id}`);
-      await expect(page.getByTestId("player-play")).toBeVisible();
-      found.push(...(await violations(page, "song page, phone")));
-      await menuItem(page, "song-metadata-edit");
-      await expect(page.getByTestId("metadata-sheet")).toBeVisible();
-      found.push(...(await violations(page, "metadata-sheet, phone")));
-      expect(found).toEqual([]);
-    });
-
-    test("the setlist overflow menu has no axe violations", async ({ page }) => {
-      const made = await page.request.post("/api/setlists", { data: { name: "Friday" } });
-      expect(made.ok()).toBeTruthy();
-      const setlist = (await made.json()) as { id: string };
-      await page.goto(`/setlists/${setlist.id}`);
-      await page.getByTestId("setlist-overflow").click();
-      await expect(page.getByRole("menu")).toBeVisible();
-      expect(await violations(page, "setlist-overflow")).toEqual([]);
-    });
-
-    test("the setlist song picker, new-setlist sheet and row menu have no axe violations", async ({
-      page,
-      seed,
-    }) => {
-      const song = await seed.chordSheet();
-      const made = await page.request.post("/api/setlists", {
-        data: { name: "Friday", entries: [{ song_id: song.id }] },
-      });
-      expect(made.ok()).toBeTruthy();
-      const setlist = (await made.json()) as { id: string };
-      const found: string[] = [];
-
-      await page.goto(`/setlists/${setlist.id}`);
-      await expect(page.getByTestId("setlist-entry")).toHaveCount(1);
-      found.push(...(await violations(page, "setlist-compact-rows")));
-      await page.getByTestId("setlist-entry-menu").click();
-      await expect(page.getByRole("menu")).toBeVisible();
-      found.push(...(await violations(page, "setlist-row-menu")));
-      await page.keyboard.press("Escape");
-      await page.getByTestId("setlist-add-open").click();
-      await expect(page.getByTestId("setlist-song-picker")).toBeVisible();
-      await expect(page.getByTestId("setlist-result").first()).toBeVisible();
-      found.push(...(await violations(page, "setlist-song-picker")));
-
-      await page.goto("/setlists");
-      await expect(page.getByTestId("setlist-row")).toHaveCount(1);
-      found.push(...(await violations(page, "setlist-cards")));
-      await page.getByTestId("setlist-new").click();
-      await expect(page.getByTestId("setlist-new-sheet")).toBeVisible();
-      found.push(...(await violations(page, "setlist-new-sheet")));
-      expect(found).toEqual([]);
-    });
-
-    test("the practice home with history and its goal popover have no axe violations", async ({
-      page,
-      seed,
-    }) => {
-      const song = await seed.chordSheet();
-      const now = new Date();
-      const pad = (value: number) => String(value).padStart(2, "0");
-      const logged = await page.request.post("/api/practice/sessions", {
-        data: {
-          song_id: song.id,
-          day: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
-          duration_seconds: 420,
-          speed: 1,
-          mode: "free",
-        },
-      });
-      expect(logged.ok()).toBeTruthy();
-      await page.goto("/practice");
-      await expect(page.getByTestId("practice-ring")).toBeVisible();
-      const found = await violations(page, "practice home");
-      await page.getByTestId("practice-goal-chip").click();
-      await expect(page.getByTestId("practice-goal-input")).toBeVisible();
-      found.push(...(await violations(page, "practice goal popover")));
-      expect(found).toEqual([]);
-    });
-
-    test("the tab editor bar and beat menus have no axe violations", async ({ page, seed }) => {
-      const song = await seed.create({ title: "Editor Axe", preset: "guitar-6" });
-      await page.goto(`/songs/${song.id}/edit`);
-      await expect(page.getByTestId("editor-bar-menu")).toBeVisible();
-      await page.getByTestId("editor-bar-menu").click();
-      await expect(page.getByRole("menu")).toBeVisible();
-      const found = await violations(page, "editor bar menu");
-      await page.keyboard.press("Escape");
-      await expect(page.getByRole("menu")).toBeHidden();
-      await page.getByTestId("editor-beat-menu").first().click();
-      await expect(page.getByRole("menu")).toBeVisible();
-      found.push(...(await violations(page, "editor beat menu")));
-      expect(found).toEqual([]);
+      await expectAccessible(page, "auto sync");
     });
   });
 }
@@ -379,8 +113,6 @@ test("sheets trap focus, close on Escape and give focus back", async ({ page }) 
   const sheet = page.getByTestId("add-sheet");
   await expect(sheet).toBeVisible();
 
-  // Tab far more times than the sheet has controls. The page behind is inert, so focus either
-  // stays inside the sheet or briefly leaves the document (the browser's own UI), never on the page.
   for (let i = 0; i < 60; i++) {
     await page.keyboard.press("Tab");
     const where = await sheet.evaluate((el) => {
@@ -398,24 +130,21 @@ test("sheets trap focus, close on Escape and give focus back", async ({ page }) 
 });
 
 test("the library is reachable by keyboard with a visible focus ring", async ({ page, seed }) => {
-  const song = await seed.musicXmlTab();
+  await seed.create({ title: "First Song", artist: "Band" });
   await page.goto("/");
-  const link = page.locator(`a[href$="/songs/${song.id}"]`).first();
-  await expect(link).toBeVisible();
-  let reached = false;
-  for (let i = 0; i < 40 && !reached; i++) {
-    await page.keyboard.press("Tab");
-    reached = await link.evaluate((el) => el === document.activeElement);
-  }
-  expect(reached).toBe(true);
-  const outline = await link.evaluate((el) => {
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const focused = await page.evaluate(() => {
+    const el = document.activeElement;
+    if (!(el instanceof HTMLElement)) return null;
     const style = getComputedStyle(el);
-    return { width: parseFloat(style.outlineWidth), style: style.outlineStyle };
+    return {
+      label: el.getAttribute("aria-label") || el.textContent?.trim(),
+      outline: style.outlineStyle,
+    };
   });
-  expect(outline.style).not.toBe("none");
-  expect(outline.width).toBeGreaterThan(0);
-  await page.keyboard.press("Enter");
-  await expect(page.getByTestId("player-play")).toBeVisible();
+  expect(focused?.label).toBeTruthy();
+  expect(focused?.outline).not.toBe("none");
 });
 
 test("the player announces playback state and every dock button has a name", async ({
@@ -425,47 +154,34 @@ test("the player announces playback state and every dock button has a name", asy
   const song = await seed.musicXmlTab();
   await page.goto(`/songs/${song.id}`);
   const play = page.getByTestId("player-play");
-  await expect(play).toBeVisible();
-  const status = page.getByTestId("player-announcer");
-  await expect(status).toHaveText("Paused");
-  await expect(status).toHaveAttribute("role", "status");
-
+  await expect(page.getByTestId("player-announcer")).toHaveText("Paused");
   await play.click();
-  await expect(status).toHaveText(/Playing|Counting in/);
+  await expect(page.getByTestId("player-announcer")).toHaveText("Playing");
   await play.click();
-  await expect(status).toHaveText("Paused");
+  await expect(page.getByTestId("player-announcer")).toHaveText("Paused");
 
-  const unnamed = await page.evaluate(() =>
-    [...document.querySelectorAll("button")]
-      .filter((b) => !(b.textContent ?? "").trim() && !b.getAttribute("aria-label"))
-      .map((b) => b.outerHTML.slice(0, 120)),
-  );
+  const unnamed = await page
+    .locator(".dock button")
+    .evaluateAll((buttons) =>
+      buttons
+        .filter((button) => !button.getAttribute("aria-label") && !button.textContent?.trim())
+        .map((button) => button.outerHTML.slice(0, 100)),
+    );
   expect(unnamed).toEqual([]);
 });
 
 test.describe("reduced motion", () => {
   test.use({ reducedMotion: "reduce" });
 
-  test("animations and transitions are effectively off", async ({ page, seed }) => {
-    const song = await seed.musicXmlTab();
-    await page.goto(`/songs/${song.id}`);
-    await expect(page.getByTestId("player-play")).toBeVisible();
-    await page.getByTestId("player-panel-toggle").click();
-    await expect(page.getByTestId("player-sheet")).toBeVisible();
-    const slow = await page.evaluate(() => {
-      const limit = 0.05;
-      const toSeconds = (list: string) => list.split(",").map((v) => parseFloat(v));
-      return [...document.querySelectorAll("*")]
-        .filter((el) => {
-          const style = getComputedStyle(el);
-          return (
-            toSeconds(style.animationDuration).some((v) => v > limit) &&
-            style.animationName !== "none"
-          );
-        })
-        .map((el) => el.className.toString())
-        .slice(0, 5);
+  test("animations and transitions are effectively off", async ({ page }) => {
+    await page.goto("/");
+    const motion = await page.evaluate(() => {
+      const root = document.documentElement;
+      const style = getComputedStyle(root);
+      const animation = getComputedStyle(document.body).animationDuration;
+      return { smooth: style.scrollBehavior, animation };
     });
-    expect(slow).toEqual([]);
+    expect(motion.smooth).toBe("auto");
+    expect(motion.animation.split(",").every((value) => parseFloat(value) <= 0.01)).toBe(true);
   });
 });

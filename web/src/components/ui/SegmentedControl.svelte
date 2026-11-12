@@ -108,25 +108,26 @@
   /* `.control.segmented` beats the older global `.segmented` rules in app.css. */
   .control.segmented {
     display: inline-flex;
-    gap: var(--sp-1);
+    gap: var(--sp-2);
     max-width: 100%;
-    padding: var(--sp-1);
+    padding: 0;
     overflow-x: auto;
-    border: 1px solid var(--line);
-    border-radius: var(--r-pill);
-    background: var(--surface);
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
     scrollbar-width: none;
   }
 
-  .control.segmented[data-more-end] {
+  .control.segmented:global([data-more-end]) {
     mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
   }
 
-  .control.segmented[data-more-start] {
+  .control.segmented:global([data-more-start]) {
     mask-image: linear-gradient(to right, transparent, #000 28px);
   }
 
-  .control.segmented[data-more-start][data-more-end] {
+  .control.segmented:global([data-more-start][data-more-end]) {
     mask-image: linear-gradient(
       to right,
       transparent,
@@ -146,10 +147,11 @@
     justify-content: center;
     gap: var(--sp-1);
     flex: none;
-    min-height: 36px;
+    min-height: 44px;
     padding: 0 var(--sp-3);
     border: 0;
-    border-radius: var(--r-pill);
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
     background: transparent;
     box-shadow: none;
     color: var(--text-2);
@@ -168,7 +170,8 @@
 
   .control.segmented button[aria-checked="true"],
   .control.segmented button[aria-selected="true"] {
-    background: var(--surface-3);
+    border-bottom-color: var(--accent);
+    background: transparent;
     box-shadow: none;
     color: var(--text);
   }
@@ -178,7 +181,7 @@
   }
 
   .control.segmented.icons button {
-    min-width: 36px;
+    min-width: 44px;
     padding: 0 var(--sp-2);
   }
 

@@ -1,24 +1,18 @@
 <script lang="ts">
   import { RATES } from "../lib/shortcuts";
   import { formatRate, loadSheetTab, saveSheetTab, type SheetTab } from "../lib/playerSheet";
-  import { recordingGain, type PracticeSettings } from "../lib/practice";
+  import { type PracticeSettings } from "../lib/practice";
   import { t } from "../lib/i18n.svelte";
   import FretboardPanel from "./FretboardPanel.svelte";
   import Icon from "./Icon.svelte";
   import IconButton from "./ui/IconButton.svelte";
-  import ListenPanel from "./ListenPanel.svelte";
   import LoopPanel from "./LoopPanel.svelte";
   import PracticePanel from "./PracticePanel.svelte";
-  import ScorePanel from "./ScorePanel.svelte";
-  import StemMixer from "./StemMixer.svelte";
-  import WaitPanel from "./WaitPanel.svelte";
   import YouTubeAudio from "./YouTubeAudio.svelte";
-  import type { ListenSession } from "../lib/listen/input";
   import type { SavedLoop } from "../lib/practice";
-  import type { ScoreSummary } from "../lib/listen/scored";
 
   const TABS: { id: SheetTab; icon: string }[] = [
-    { id: "practice", icon: "target" },
+    { id: "practice", icon: "repeat" },
     { id: "audio", icon: "sliders" },
     { id: "sync", icon: "waveform" },
     { id: "view", icon: "eye" },
@@ -33,9 +27,6 @@
     demo,
     tracks,
     audioUrl,
-    audioEl,
-    muted = false,
-    canTranscribe,
     anchorCount,
     publishedSync,
     pendingSync,
@@ -45,32 +36,11 @@
     loopA,
     loopB,
     activeLoopId,
-    speedTrainerRunning,
-    speedTrainerPercent,
-    speedTrainerPass,
-    speedTrainerCompleted,
     rate,
-    waitOn,
-    waitAvailable,
-    waitUsesSynth = false,
-    waitError,
-    scoreOn,
-    scoreSummary,
-    scoreBleed,
-    scoreCalibrated,
-    scoreError,
-    listenSession,
-    listenDevice,
-    listenChannel,
-    listenLevel,
     notation,
     stage,
     onclose,
     onpractice,
-    onfree,
-    onwait,
-    onscore,
-    onwaitoptions,
     onloop,
     onclearloop,
     onjump,
@@ -81,15 +51,11 @@
     onrestore,
     onclearall,
     onautosync,
-    ontranscribe,
     onbpm,
     onupload,
     onyoutube,
-    onstems,
     onnotation,
     onstage,
-    onlistenDevice,
-    onlistenChannel,
   }: {
     userId?: string;
     songId: string;
@@ -99,9 +65,6 @@
     demo: boolean;
     tracks: { id: string; name: string }[];
     audioUrl: string;
-    audioEl: HTMLAudioElement | null;
-    muted?: boolean;
-    canTranscribe: boolean;
     anchorCount: number;
     publishedSync: boolean;
     pendingSync: boolean;
@@ -111,33 +74,11 @@
     loopA: number | null;
     loopB: number | null;
     activeLoopId: string | null;
-    speedTrainerRunning: boolean;
-    speedTrainerPercent: number;
-    speedTrainerPass: number;
-    speedTrainerCompleted: boolean;
     rate: number;
-    waitOn: boolean;
-    waitAvailable: boolean;
-    /** The song has a recording, so wait mode plays the synth instead. */
-    waitUsesSynth?: boolean;
-    waitError: string;
-    scoreOn: boolean;
-    scoreSummary: ScoreSummary | null;
-    scoreBleed: boolean;
-    scoreCalibrated: boolean;
-    scoreError: string;
-    listenSession: ListenSession | null;
-    listenDevice: string;
-    listenChannel: number;
-    listenLevel: number;
     notation: boolean;
     stage: boolean;
     onclose: () => void;
     onpractice: () => void;
-    onfree: () => void;
-    onwait: () => void;
-    onscore: () => void;
-    onwaitoptions: () => void;
     onloop: (which: "a" | "b") => void;
     onclearloop: () => void;
     onjump: (loop: SavedLoop) => void;
@@ -148,15 +89,11 @@
     onrestore: () => void;
     onclearall: () => void;
     onautosync: () => void;
-    ontranscribe: () => void;
     onbpm: (bpm: number) => void;
     onupload: (file: File) => void;
     onyoutube: () => void;
-    onstems: (active: boolean) => void;
     onnotation: () => void;
     onstage: (on: boolean) => void;
-    onlistenDevice: (id: string) => void;
-    onlistenChannel: (channel: number) => void;
   } = $props();
 
   let root = $state<HTMLElement | null>(null);
@@ -173,7 +110,7 @@
   const showSyncTools = $derived(hasAudio && !demo && !readOnly);
 
   function tabLabel(id: SheetTab): string {
-    if (id === "practice") return t("playerSheet.practice");
+    if (id === "practice") return t("player.loop");
     if (id === "audio") return t("playerSheet.audio");
     if (id === "sync") return t("playerSheet.sync");
     return t("playerSheet.view");
@@ -259,96 +196,11 @@
     tabindex="0"
   >
     {#if tab === "practice"}
-      <div class="panel-group">
-        <h3>{t("playerSheet.mode")}</h3>
-        <div class="modes" role="group" aria-label={t("playerSheet.mode")}>
-          <button
-            type="button"
-            class="mode"
-            data-testid="practice-mode-free"
-            aria-pressed={!waitOn && !scoreOn}
-            onclick={onfree}
-          >
-            <span class="mark"><Icon name="play" size={16} /></span>
-            <span class="copy">
-              <span class="name">{t("playerSheet.freePlay")}</span>
-              <span class="blurb">{t("playerSheet.freePlayBlurb")}</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            class="mode"
-            data-testid="score-toggle"
-            aria-pressed={scoreOn}
-            onclick={onscore}
-          >
-            <span class="mark"><Icon name="star" size={16} /></span>
-            <span class="copy">
-              <span class="name">{t("scored.start")}</span>
-              <span class="blurb">{t("playerSheet.scoreBlurb")}</span>
-            </span>
-          </button>
-          {#if waitAvailable}
-            <button
-              type="button"
-              class="mode"
-              data-testid="wait-toggle"
-              aria-pressed={waitOn}
-              onclick={onwait}
-            >
-              <span class="mark"><Icon name="hourglass" size={16} /></span>
-              <span class="copy">
-                <span class="name">{t("wait.start")}</span>
-                <span class="blurb">{t("playerSheet.waitBlurb")}</span>
-              </span>
-            </button>
-          {:else}
-            <p class="hint" data-testid="wait-unavailable">{t("wait.needsSynth")}</p>
-          {/if}
-        </div>
-      </div>
-      {#if waitAvailable}
-        <WaitPanel
-          {practice}
-          on={waitOn}
-          available
-          usesSynth={waitUsesSynth}
-          error={waitError}
-          hideToggle
-          onchange={onwaitoptions}
-          ontoggle={onwait}
-        />
-      {/if}
-      {#if !hasAudio}
-        <ListenPanel
-          session={listenSession}
-          deviceId={listenDevice}
-          channel={listenChannel}
-          level={listenLevel}
-          onDevice={onlistenDevice}
-          onChannel={onlistenChannel}
-        />
-      {/if}
-      {#if scoreOn || scoreError || scoreBleed}
-        <ScorePanel
-          on={scoreOn}
-          summary={scoreSummary}
-          bleed={scoreBleed}
-          calibrated={scoreCalibrated}
-          error={scoreError}
-          hideToggle
-          ontoggle={onscore}
-        />
-      {/if}
       <LoopPanel
         {practice}
         {loopA}
         {loopB}
         {activeLoopId}
-        {speedTrainerRunning}
-        {speedTrainerPercent}
-        {speedTrainerPass}
-        {speedTrainerCompleted}
         onsetloop={onloop}
         {onclearloop}
         onchange={onpractice}
@@ -372,14 +224,6 @@
       </LoopPanel>
     {:else if tab === "audio"}
       <PracticePanel {practice} {hasAudio} {tracks} onchange={onpractice} />
-      {#if showSyncTools}
-        <StemMixer
-          {songId}
-          {audioEl}
-          master={muted ? 0 : recordingGain(practice.mix)}
-          onactive={onstems}
-        />
-      {/if}
       {#if !readOnly}
         <div class="panel-group">
           <h3>{t("playerSheet.audioSource")}</h3>
@@ -438,16 +282,6 @@
             >
               <Icon name="waveform" size={18} />{t("autoSync.button")}
             </button>
-            {#if canTranscribe}
-              <button
-                type="button"
-                data-testid="player-transcribe"
-                title={t("transcribe.buttonHint")}
-                onclick={ontranscribe}
-              >
-                <Icon name="sparkle" size={18} />{t("transcribe.button")}
-              </button>
-            {/if}
             <button type="button" class="danger-text" onclick={onclearall}
               >{t("player.clearAll")}</button
             >
@@ -572,77 +406,6 @@
     padding: var(--sp-4);
   }
 
-  .modes {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-2);
-  }
-
-  .mode {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--sp-3);
-    width: 100%;
-    min-height: 0;
-    padding: var(--sp-3);
-    border: 1px solid var(--line);
-    border-radius: var(--r-sm);
-    background: var(--surface-2);
-    color: var(--text);
-    text-align: left;
-    white-space: normal;
-    box-shadow: none;
-  }
-
-  .mode:hover:not(:disabled) {
-    background: var(--surface-3);
-  }
-
-  .mode[aria-pressed="true"] {
-    border-color: var(--accent);
-    background: var(--accent-soft);
-  }
-
-  .copy {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .mark {
-    display: grid;
-    place-items: center;
-    flex: none;
-    width: var(--sp-7);
-    height: var(--sp-7);
-    border-radius: var(--r-sm);
-    background: var(--surface-3);
-    color: var(--text-2);
-  }
-
-  .mode[aria-pressed="true"] .mark {
-    background: var(--accent);
-    color: var(--accent-ink);
-  }
-
-  .name,
-  .blurb {
-    display: block;
-  }
-
-  .name {
-    font-size: var(--fs-body);
-    font-weight: 650;
-  }
-
-  .blurb {
-    margin-top: var(--sp-1);
-    color: var(--text-3);
-    font-size: var(--fs-xs);
-    font-weight: 450;
-    line-height: 1.4;
-    white-space: normal;
-  }
-
   .hint {
     margin: 0;
     color: var(--text-2);
@@ -686,8 +449,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .player-panel,
-    .tab,
-    .mode {
+    .tab {
       animation: none;
       transition: none;
     }

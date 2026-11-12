@@ -161,5 +161,8 @@ def test_separate_checks_the_model_and_that_demucs_is_installed(tmp_path: Path, 
 def test_encode_mp3_keeps_the_wav_when_encoding_fails(tmp_path: Path) -> None:
     wav = tmp_path / "bass.wav"
     wav.write_bytes(b"not a wav")
-    assert engine.encode_mp3(wav, "/bin/false") == wav
+    encoder = tmp_path / "failed-encoder"
+    encoder.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    encoder.chmod(0o755)
+    assert engine.encode_mp3(wav, str(encoder)) == wav
     assert wav.is_file()

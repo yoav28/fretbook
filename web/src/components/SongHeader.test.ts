@@ -51,13 +51,13 @@ describe("SongHeader", () => {
     });
   });
 
-  it("puts the instrument and artist above the title, then the facts, key and level", () => {
+  it("puts the instrument and artist above the title, then the facts and key", () => {
     render(SongHeader, props({ facts: [{ label: "240 BPM" }], factsAfter: [{ label: "4 bars" }] }));
     expect(screen.getByTestId("song-heading")).toHaveTextContent("Riff");
     expect(screen.getByText("Bass · Band")).toBeInTheDocument();
     const facts = screen.getByTestId("song-key").parentElement as HTMLElement;
-    expect(facts.textContent).toMatch(/240 BPM.*E minor.*4 bars.*Level/);
-    expect(screen.getByTestId("song-level")).toBeInTheDocument();
+    expect(facts.textContent).toMatch(/240 BPM.*E minor.*4 bars/);
+    expect(screen.queryByTestId("song-level")).toBeNull();
   });
 
   it("stars and unstars the song", async () => {
@@ -87,18 +87,15 @@ describe("SongHeader", () => {
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("nope"));
   });
 
-  it("keeps Transpose and Edit as buttons and the rest in the overflow menu", async () => {
+  it("keeps Transpose and Edit direct and Delete in the overflow menu", async () => {
     render(SongHeader, props({ onretune: vi.fn(), ontuner: vi.fn() }));
     expect(screen.getByTestId("song-retune")).toHaveTextContent("Transpose");
     expect(screen.getByTestId("song-edit-link")).toBeInTheDocument();
     expect(screen.queryByTestId("song-tuner")).toBeNull();
 
     await fireEvent.click(screen.getByTestId("song-more"));
-    for (const id of ["export-open", "song-add-to-setlist", "song-tuner", "song-move"]) {
-      expect(screen.getByTestId(id)).toBeInTheDocument();
-    }
-    expect(screen.getByTestId("song-metadata-edit")).toBeInTheDocument();
-    // Delete is last.
+    expect(screen.getByTestId("song-delete")).toBeInTheDocument();
+    expect(screen.queryByTestId("export-open")).toBeNull();
     const items = screen.getAllByRole("menuitem");
     expect(items[items.length - 1]).toHaveAttribute("data-testid", "song-delete");
   });
@@ -121,23 +118,18 @@ describe("SongHeader", () => {
   it("hides every account action on an anonymous share link", () => {
     render(SongHeader, props({ readOnly: true, shared: true, onretune: vi.fn() }));
     expect(screen.queryByTestId("song-favourite")).toBeNull();
-    expect(screen.queryByTestId("song-retune")).toBeNull();
+    expect(screen.getByTestId("song-retune")).toBeInTheDocument();
     expect(screen.queryByTestId("song-edit-link")).toBeNull();
-    expect(screen.queryByTestId("song-more")).toBeNull();
+    expect(screen.queryByTestId("song-delete")).toBeNull();
   });
 
-  it("keeps the non-editing actions for a band viewer", async () => {
+  it("keeps transpose for a read-only viewer and hides editing actions", () => {
     render(SongHeader, props({ readOnly: true, onretune: vi.fn() }));
     // The star and tags are saved on the song, which the server only lets an editor change.
     expect(screen.queryByTestId("song-favourite")).toBeNull();
     expect(screen.queryByTestId("song-tag-new")).toBeNull();
     expect(screen.getByTestId("song-retune")).toBeTruthy();
     expect(screen.queryByTestId("song-edit-link")).toBeNull();
-    await fireEvent.click(screen.getByTestId("song-more"));
-    expect(screen.getByTestId("export-open")).toBeTruthy();
-    expect(screen.getByTestId("song-add-to-setlist")).toBeTruthy();
-    expect(screen.getByTestId("song-move")).toBeTruthy();
     expect(screen.queryByTestId("song-delete")).toBeNull();
-    expect(screen.queryByTestId("song-share")).toBeNull();
   });
 });

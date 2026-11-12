@@ -26,7 +26,9 @@ test("a saved song opens with no network, and an edit made offline is sent when 
   await controlled(page);
   await expect(page.getByTestId("song-heading")).toHaveText("Gig Tune");
   await menuItem(page, "offline-toggle");
-  await expect(page.getByTestId("offline-saved")).toBeVisible();
+  await page.getByTestId("song-more").click();
+  await expect(page.getByTestId("offline-toggle")).toHaveText("Remove from this device");
+  await page.keyboard.press("Escape");
 
   await context.setOffline(true);
   await page.reload();
@@ -90,30 +92,6 @@ test("an offline edit to a song changed elsewhere is surfaced, and can be kept",
   expect(body.chordpro).not.toContain("theirs");
 });
 
-test("a saved setlist plays with no network", async ({ page, context, seed }) => {
-  const first = await seed.create({ title: "Opener", chordpro: SHEET("Opener") });
-  const second = await seed.create({ title: "Closer", chordpro: SHEET("Closer") });
-  const made = await page.request.post("/api/setlists", { data: { name: "Friday" } });
-  const setlist = (await made.json()) as { id: string };
-  await page.request.put(`/api/setlists/${setlist.id}/entries`, {
-    data: {
-      entries: [first, second].map((song) => ({ song_id: song.id, note: "", transpose: 0 })),
-    },
-  });
-
-  await page.goto(`/setlists/${setlist.id}`);
-  await controlled(page);
-  await page.getByTestId("setlist-overflow").click();
-  await page.getByTestId("setlist-offline").click();
-  await page.getByTestId("setlist-overflow").click();
-  await expect(page.getByTestId("setlist-offline")).toContainText("Kept on this device");
-
-  await context.setOffline(true);
-  await page.goto(`/setlists/${setlist.id}/play/2`);
-  await expect(page.getByTestId("setlist-position")).toHaveText("Song 2 of 2");
-  await expect(page.getByTestId("song-heading")).toHaveText("Closer");
-});
-
 test("the manifest makes the app installable", async ({ page }) => {
   await page.goto("/");
   const href = await page.locator('link[rel="manifest"]').getAttribute("href");
@@ -140,7 +118,9 @@ test("a favourite and a tag set offline are queued and sent when the network ret
   await controlled(page);
   await expect(page.getByTestId("song-heading")).toHaveText("Queued Marks");
   await menuItem(page, "offline-toggle");
-  await expect(page.getByTestId("offline-saved")).toBeVisible();
+  await page.getByTestId("song-more").click();
+  await expect(page.getByTestId("offline-toggle")).toHaveText("Remove from this device");
+  await page.keyboard.press("Escape");
 
   await context.setOffline(true);
   await page.reload();

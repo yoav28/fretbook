@@ -243,6 +243,8 @@
   },
   "player": {
     "score": "Score",
+    "skipToScore": "Skip to tablature",
+    "practiceMode": "Practice",
     "play": "Play",
     "pause": "Pause",
     "tap": "Tap bar (T)",
@@ -293,10 +295,10 @@
     "paused": "Paused"
   },
   "playerSheet": {
-    "expand": "Show more of the practice panel",
-    "shrink": "Show less of the practice panel",
-    "label": "Practice, audio, sync and view",
-    "practice": "Practice",
+    "expand": "Show more playback options",
+    "shrink": "Show fewer playback options",
+    "label": "Playback options",
+    "practice": "Loops",
     "audio": "Audio",
     "sync": "Sync",
     "view": "View",
@@ -1005,7 +1007,8 @@
       "one": "Added “{tag}” to {count} song.",
       "other": "Added “{tag}” to {count} songs."
     },
-    "clearFilters": "Clear tag filters"
+    "clearFilters": "Clear tag filters",
+    "empty": "No tags match your filters."
   },
   "manageTags": {
     "open": "Manage tags",

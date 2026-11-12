@@ -595,7 +595,7 @@
     margin-left: calc(-1 * var(--sp-2));
   }
   .setlist-name:hover,
-  .setlist-name:focus {
+  .setlist-name:focus:not(:focus-visible) {
     border-color: var(--line-strong);
   }
   .section-head {

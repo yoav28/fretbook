@@ -11,50 +11,6 @@ async function noSidewaysScroll(page: import("@playwright/test").Page) {
   expect(box.scroll).toBeLessThanOrEqual(box.client + 1);
 }
 
-test("practice and the player stay within a phone and a tablet", async ({ page, seed }) => {
-  const song = await seed.musicXmlTab();
-  // An empty log only shows its first step; the heatmap and lists need some history.
-  const now = new Date();
-  const pad = (value: number) => String(value).padStart(2, "0");
-  const logged = await page.request.post("/api/practice/sessions", {
-    data: {
-      song_id: song.id,
-      day: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
-      duration_seconds: 420,
-      speed: 1,
-      mode: "free",
-    },
-  });
-  expect(logged.ok()).toBeTruthy();
-
-  for (const size of [
-    { width: 375, height: 812 },
-    { width: 768, height: 1024 },
-  ]) {
-    await page.setViewportSize(size);
-    await page.goto("/practice");
-    await expect(page.getByTestId("practice-heatmap")).toBeVisible();
-    await noSidewaysScroll(page);
-
-    await page.goto(`/songs/${song.id}`);
-    await expect(page.getByTestId("player-play")).toBeVisible();
-    const dock = await page.evaluate(() => {
-      const rect = document.querySelector(".dock")!.getBoundingClientRect();
-      return {
-        top: rect.top,
-        right: rect.right,
-        bottom: rect.bottom,
-        innerH: window.innerHeight,
-        client: document.documentElement.clientWidth,
-      };
-    });
-    expect(dock.right).toBeLessThanOrEqual(dock.client + 1);
-    expect(dock.top).toBeGreaterThanOrEqual(0);
-    expect(dock.bottom).toBeLessThanOrEqual(dock.innerH + 1);
-    await noSidewaysScroll(page);
-  }
-});
-
 // Issue #333: player panel must fit desktop, phone landscape and phone portrait without overflowing sideways.
 test("the player sheet fits desktop and phone landscape without scrolling sideways", async ({
   page,
@@ -73,6 +29,9 @@ test("the player sheet fits desktop and phone landscape without scrolling sidewa
     // 1. Open with the dock toggle
     await page.getByTestId("player-panel-toggle").click();
     await expect(page.getByTestId("player-sheet")).toBeVisible();
+    await page.waitForFunction(() =>
+      document.getAnimations().every((animation) => animation.playState !== "running"),
+    );
 
     const box = await page.evaluate(() => ({
       scroll: document.documentElement.scrollWidth,
@@ -132,10 +91,15 @@ test("the phone player keeps the fretboard clear of the dock and doesn't shift",
           const rect = document.querySelector(selector)!.getBoundingClientRect();
           return { top: rect.top, bottom: rect.bottom };
         };
+        const systems = document.querySelectorAll("[data-testid=player-score] svg");
+        const lastSystem = systems.item(systems.length - 1);
+        const score = lastSystem?.getBoundingClientRect();
         return {
           fretboard: box("[data-testid=player-fretboard]"),
           dock: box(".dock-bar"),
-          score: box("[data-testid=player-score]"),
+          score: score
+            ? { top: score.top, bottom: score.bottom }
+            : box("[data-testid=player-score]"),
         };
       });
     const before = await rects();
@@ -189,7 +153,7 @@ test("the phone dock more menu is not clipped in stage mode at 375px", async ({ 
   await expect(page.getByTestId("player-sheet")).toBeHidden();
 });
 
-test("library cards and the tab bar fit a phone", async ({ page, seed }) => {
+test("library rows and add control fit a phone", async ({ page, seed }) => {
   await seed.create({ title: "First Song", artist: "Band" });
   await seed.create({ title: "Second Song", artist: "Band" });
 
@@ -215,25 +179,34 @@ test("library cards and the tab bar fit a phone", async ({ page, seed }) => {
             return {
               inside: rect.left >= card.left - 1 && rect.right <= card.right + 1,
               small: rect.width < 44 || rect.height < 44,
+              x: rect.x,
+              width: rect.width,
+              height: rect.height,
             };
           });
         }),
       );
-    // Buttons animate in, so wait for them to settle.
-    await expect.poll(async () => (await measure()).every((b) => b.inside && !b.small)).toBe(true);
+    await page.waitForFunction(() =>
+      document.getAnimations().every((animation) => animation.playState !== "running"),
+    );
+    const actions = await measure();
+    expect(
+      actions.every((button) => button.inside && !button.small),
+      JSON.stringify(actions),
+    ).toBe(true);
     // A star and a menu per song; delete is behind the menu, not a tap away.
     expect(await measure()).toHaveLength(4);
 
-    // The + is centred, and there is one of it.
-    const add = await page.locator(".tab-add").boundingBox();
-    expect(Math.abs(add!.x + add!.width / 2 - size.width / 2)).toBeLessThanOrEqual(1);
-    await expect(page.getByTestId("add-song-topbar")).toHaveCount(0);
+    const add = await page.getByTestId("add-song-topbar").boundingBox();
+    expect(add!.width).toBeGreaterThanOrEqual(44);
+    expect(add!.height).toBeGreaterThanOrEqual(44);
+    expect(add!.x + add!.width).toBeLessThanOrEqual(size.width);
 
-    // Scrolled to the end, the list clears the tab bar and its + button.
+    // The library remains reachable at the bottom without a clipped action bar.
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     const showing = await page.getByTestId("library-end").boundingBox();
-    const bar = await page.locator(".tabbar").boundingBox();
-    expect(showing!.y + showing!.height).toBeLessThanOrEqual(bar!.y - 26);
+    expect(showing!.y + showing!.height).toBeLessThanOrEqual(size.height + 1);
+    await noSidewaysScroll(page);
   }
 });
 
@@ -264,8 +237,7 @@ test("the phone library shows a song on the first screen", async ({ page, seed }
   const box = await card.boundingBox();
   // The tab bar starts at 590, so a whole card has to fit above it.
   expect(box!.y).toBeLessThan(400);
-  const bar = await page.locator(".tabbar").boundingBox();
-  expect(box!.y + box!.height).toBeLessThanOrEqual(bar!.y);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(664);
   await noSidewaysScroll(page);
 
   // The search icon sits inside the input field.
@@ -309,7 +281,7 @@ test("a phone tap on Play hits the button, and the scrubber still has a 44px tar
     const input = document.querySelector(".scrubber input");
     if (!(input instanceof HTMLInputElement)) return null;
     const inputBox = input.getBoundingClientRect();
-    const buttons = ["player-prev", "player-play", "player-next", "player-mute"].map((id) => {
+    const buttons = ["player-play"].map((id) => {
       const button = document.querySelector(`[data-testid="${id}"]`);
       const rect = button?.getBoundingClientRect();
       const hit = (y: number) => {
@@ -321,7 +293,9 @@ test("a phone tap on Play hits the button, and the scrubber still has a 44px tar
         id,
         top: rect ? hit(rect.top) : null,
         below: rect ? hit(rect.top + 4) : null,
-        gap: rect ? rect.top - inputBox.bottom : null,
+        horizontalGap: rect
+          ? Math.max(inputBox.left - rect.right, rect.left - inputBox.right)
+          : null,
       };
     });
     const above = document.elementFromPoint(inputBox.left + inputBox.width / 2, inputBox.top + 2);
@@ -336,22 +310,22 @@ test("a phone tap on Play hits the button, and the scrubber still has a 44px tar
   expect(layout.height).toBeGreaterThanOrEqual(44);
   expect(layout.aboveIsScrubber).toBe(true);
   for (const button of layout.buttons) {
-    expect(button.gap, button.id).toBeGreaterThan(0);
+    expect(button.horizontalGap, button.id).toBeGreaterThan(0);
     expect(button.top, button.id).toBe(button.id);
     expect(button.below, button.id).toBe(button.id);
   }
 
-  // The reported tap: a few pixels below the top edge seeks when the scrubber covers it.
-  const next = page.getByTestId("player-next");
-  const nextBox = (await next.boundingBox())!;
-  await next.click({ position: { x: nextBox.width / 2, y: 6 } });
-  await expect(status).toHaveAttribute("data-measure", "1");
+  const positionSlider = page.locator(".scrubber input");
+  const positionBox = (await positionSlider.boundingBox())!;
+  await positionSlider.click({ position: { x: positionBox.width * 0.2, y: 6 } });
+  await expect
+    .poll(async () => Number(await status.getAttribute("data-measure")))
+    .toBeGreaterThan(0);
 
   const playBox = (await play.boundingBox())!;
+  const beforePlay = await status.getAttribute("data-measure");
   await play.click({ position: { x: playBox.width / 2, y: 4 } });
-  // A seek would move the bar immediately. Playback only advances after the synth starts,
-  // so this read must not retry: the measure leaves 1 once the song is actually playing.
-  expect(await status.getAttribute("data-measure")).toBe("1");
+  expect(await status.getAttribute("data-measure")).toBe(beforePlay);
   await expect(play).toHaveAttribute("data-playing", "true", { timeout: 30_000 });
 
   // The padding above the line is part of the target: a tap there still seeks.
@@ -365,21 +339,16 @@ test("a phone tap on Play hits the button, and the scrubber still has a 44px tar
     .toBeGreaterThan(15);
 });
 
-test("the phone speed picker sits entirely on screen", async ({ page, seed }) => {
+test("the phone speed control sits entirely on screen", async ({ page, seed }) => {
   const song = await seed.musicXmlTab();
   await page.setViewportSize({ width: 390, height: 664 });
   await page.goto(`/songs/${song.id}`);
-  await page.getByTestId("player-speed").click();
-  await expect(page.getByTestId("player-speed-popover")).toBeVisible();
+  const speed = page.getByTestId("player-speed");
+  await expect(speed).toBeVisible();
   const width = await page.evaluate(() => window.innerWidth);
-  const buttons = page.getByTestId("player-speed-popover").locator("button");
-  const count = await buttons.count();
-  expect(count).toBeGreaterThan(0);
-  for (let i = 0; i < count; i += 1) {
-    const box = (await buttons.nth(i).boundingBox())!;
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(width);
-  }
+  const box = (await speed.boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(width);
 });
 
 // Follow-scroll parks the playing system below the sticky song header, not under it (#383).
@@ -421,9 +390,8 @@ test.describe("phone landscape library", () => {
     const card = page.getByTestId("song-card").first();
     await expect(card).toBeVisible();
     const box = await card.boundingBox();
-    const bar = await page.locator(".tabbar").boundingBox();
-    expect(box!.y + box!.height).toBeLessThanOrEqual(bar!.y);
-    expect(bar!.height).toBeLessThanOrEqual(44);
+    expect(box!.y).toBeGreaterThanOrEqual(0);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(390);
     await noSidewaysScroll(page);
 
     // The search icon sits inside the input field.

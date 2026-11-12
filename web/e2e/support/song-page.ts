@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 /** Opens the song page's "⋯" menu and clicks one of its items. */
 export async function menuItem(page: Page, testid: string): Promise<void> {
@@ -17,4 +17,5 @@ export async function addTag(page: Page, tag: string): Promise<void> {
   if (!(await input.isVisible())) await page.getByTestId("song-tag-new").click();
   await input.fill(tag);
   await input.press("Enter");
+  await expect(page.getByTestId("song-tag").filter({ hasText: tag })).toBeVisible();
 }

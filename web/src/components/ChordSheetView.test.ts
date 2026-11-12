@@ -1,13 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
+import { fireEvent, render, screen } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetPedals, setPedal, setStage } from "../lib/handsFree.svelte";
 import type { SongDetail } from "../lib/types";
 import ChordSheetView from "./ChordSheetView.svelte";
 
-const pdf = vi.hoisted(() => vi.fn());
 const strum = vi.hoisted(() => vi.fn());
-vi.mock("../lib/export/pdf", () => ({ downloadChordSheetPdf: pdf }));
 const awake = vi.hoisted(() => ({ letGo: vi.fn(), keep: vi.fn() }));
 vi.mock("../lib/wakeLock", () => ({ keepAwake: awake.keep.mockImplementation(() => awake.letGo) }));
 vi.mock("../lib/chords/strum", async (importOriginal) => ({
@@ -24,7 +22,6 @@ const names = () => screen.getAllByTestId("strip-chord-name").map((node) => node
 describe("ChordSheetView diagram strip", () => {
   beforeEach(() => {
     localStorage.clear();
-    pdf.mockReset();
     strum.mockReset();
   });
 
@@ -103,20 +100,15 @@ describe("ChordSheetView diagram strip", () => {
     expect(notes.map((note) => note.midi)).toEqual([58, 63, 67, 75]);
   });
 
-  it("uses a {define:} from the song and sends the diagrams to the PDF", async () => {
+  it("uses a {define:} from the song and prints the chord sheet", async () => {
     render(ChordSheetView, {
       props: { song: song("{define: Am7 base-fret 1 frets x 0 2 0 1 0}\n[Am7]Hello") },
     });
     expect(screen.getByText("From this song")).toBeInTheDocument();
-    await fireEvent.click(screen.getByTestId("song-more"));
-    await fireEvent.click(screen.getByTestId("export-open"));
-    await fireEvent.click(screen.getByTestId("export-pdf"));
-    await waitFor(() => expect(pdf).toHaveBeenCalledTimes(1));
-    const { diagrams } = pdf.mock.calls[0][0];
-    expect(diagrams.strings).toBe(6);
-    expect(diagrams.chords).toHaveLength(1);
-    expect(diagrams.chords[0].name).toBe("Am7");
-    expect(diagrams.chords[0].voicing.frets).toEqual([null, 0, 2, 0, 1, 0]);
+    const print = vi.spyOn(window, "print").mockImplementation(() => undefined);
+    await fireEvent.click(screen.getByTestId("export-print"));
+    expect(print).toHaveBeenCalledOnce();
+    print.mockRestore();
   });
 });
 

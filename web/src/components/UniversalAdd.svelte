@@ -80,7 +80,7 @@
     <span class="dropzone-icon"><Icon name="upload" size={28} /></span>
     <strong>{t("universal.drop")}</strong>
     <small class="muted">{t("bulk.dropHint")}</small>
-    <span class="button primary">{t("universal.browse")}</span>
+    <span class="button secondary">{t("universal.browse")}</span>
     <input
       class="visually-hidden"
       data-testid="any-file-input"

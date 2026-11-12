@@ -221,17 +221,17 @@
   <figcaption class="highway-caption muted small">
     <div class="highway-badges">
       {#if windowData.currentSection}
-        <span class="pill pill-accent" data-testid="highway-section"
+        <span class="highway-label highway-label-current" data-testid="highway-section"
           >{t("highway.sectionNow", { section: windowData.currentSection })}</span
         >
       {/if}
       {#if windowData.upcomingSection}
-        <span class="pill" data-testid="highway-upcoming-section"
+        <span class="highway-label" data-testid="highway-upcoming-section"
           >{t("highway.sectionNext", { section: windowData.upcomingSection.name })}</span
         >
       {/if}
       {#if activeChord}
-        <span class="pill pill-accent" data-testid="highway-chord"
+        <span class="highway-label highway-label-chord" data-testid="highway-chord"
           >{t("highway.chordNow", { chord: activeChord.name })}</span
         >
       {/if}
@@ -253,11 +253,10 @@
     z-index: 0;
     width: 100%;
     height: clamp(220px, 34dvh, 320px);
-    border-radius: var(--r-lg);
+    border-radius: var(--r-md);
     overflow: hidden;
-    background: #121018;
-    border: 1px solid var(--line-strong);
-    box-shadow: var(--shadow-lg);
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
   }
 
   canvas {
@@ -267,15 +266,12 @@
     cursor: pointer;
   }
 
-  /* The badges scroll sideways instead of wrapping, so a new chord pill never changes the
-     height. The "Now" readout lives under the fretboard (one place only). */
   .highway-caption {
     display: flex;
-    min-height: 2rem;
+    min-height: 1.5rem;
     align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0 0.25rem;
+    gap: 0.75rem;
   }
 
   .highway-badges {
@@ -284,7 +280,35 @@
     min-width: 0;
     overflow-x: auto;
     scrollbar-width: none;
-    gap: 0.4rem;
+    gap: 0.65rem;
     align-items: center;
+  }
+
+  .highway-label {
+    flex: none;
+    color: var(--text-2);
+    font-size: var(--fs-xs);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .highway-label + .highway-label {
+    padding-left: 0.65rem;
+    border-left: 1px solid var(--line);
+  }
+
+  .highway-label-current,
+  .highway-label-chord {
+    color: var(--accent-text);
+  }
+
+  @media (max-width: 520px) {
+    .highway-stage {
+      height: clamp(190px, 32dvh, 260px);
+    }
+
+    .highway-caption {
+      min-height: 1.75rem;
+    }
   }
 </style>

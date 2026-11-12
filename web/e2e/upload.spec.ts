@@ -12,7 +12,7 @@ test("upload a MusicXML file and open it", async ({ page, seed }) => {
   await page.getByTestId("add-file-input").setInputFiles(fixture("practice-riff.musicxml"));
 
   // The import runs as a job; the app opens the new song when it is done.
-  await expect(page).toHaveURL(/\/songs\/[^/]+$/);
+  await expect(page).toHaveURL(/\/songs\/(?:[^/]+\/)?[^/]+$/);
   await expect(page.getByTestId("song-heading")).toHaveText("Practice Riff");
   // alphaTab draws the score as SVG.
   await expect(page.getByTestId("player-score").locator("svg").first()).toBeVisible();

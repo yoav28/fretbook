@@ -24,8 +24,6 @@ test("full screen shows only the score and the dock, and every exit restores the
   expect(await page.evaluate(() => document.fullscreenElement?.tagName)).toBe("HTML");
   await expect(page.locator(".sidebar")).toBeHidden();
   await expect(page.locator(".song-header")).toBeHidden();
-  await expect(page.getByTestId("song-tags")).toBeHidden();
-  await expect(page.getByTestId("song-details")).toBeHidden();
   await expect(page.getByTestId("player-view-row")).toBeHidden();
   await expect(page.getByTestId("player-play")).toBeVisible();
   await expect(button).toBeVisible();
@@ -39,7 +37,7 @@ test("full screen shows only the score and the dock, and every exit restores the
   await button.click();
   await expect(page.locator("html")).not.toHaveAttribute("data-fullscreen");
   expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
-  await expect(page.locator(".sidebar")).toBeVisible();
+  await expect(page.locator(".player-topnav")).toBeVisible();
   await expect(button).toHaveAttribute("aria-pressed", "false");
 
   // Leaving full screen another way (Esc, the browser's own control) restores the layout too.

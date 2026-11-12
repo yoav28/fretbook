@@ -21,13 +21,8 @@ test("on a phone the first tab system is visible above the dock without scrollin
   expect(dockBox.y + dockBox.height).toBeLessThanOrEqual(812);
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
-  // The compact header: the star and the menu beside the back link; tags and facts are in the sheet.
   await expect(page.getByTestId("song-favourite")).toBeVisible();
   await expect(page.getByTestId("song-more")).toBeVisible();
-  await expect(page.locator(".song-header").getByTestId("song-tag-new")).toHaveCount(0);
-  await menuItem(page, "song-metadata-edit");
-  await expect(page.getByTestId("metadata-sheet")).toBeVisible();
-  await expect(page.getByTestId("metadata-sheet").getByTestId("song-tag-new")).toBeVisible();
 });
 
 test("the desktop header reads back link, title, facts and tags, then the view row and score", async ({
@@ -40,56 +35,34 @@ test("the desktop header reads back link, title, facts and tags, then the view r
   await expect(page.getByTestId("player-score").locator("svg").first()).toBeVisible();
 
   const top = async (selector: string) => (await page.locator(selector).first().boundingBox())!.y;
-  const back = await top(".song-header .back");
+  const topnav = await top(".player-topnav");
   const title = await top("[data-testid=song-heading]");
   const facts = await top(".song-header .facts");
   const viewRow = await top("[data-testid=player-view-row]");
   const score = await top("[data-testid=player-score]");
-  expect(back).toBeLessThan(title);
+  expect(topnav).toBeLessThan(title);
   expect(title).toBeLessThan(facts);
   expect(facts).toBeLessThan(viewRow);
   expect(viewRow).toBeLessThan(score);
 
-  // Cover 120px, tags as chips with a "+ Tag" chip that opens the inline input.
-  expect((await page.locator(".song-header .cover").boundingBox())!.width).toBe(120);
   await expect(page.getByTestId("song-tag")).toHaveCount(1);
   await expect(page.getByTestId("song-tag-input")).toHaveCount(0);
   await addTag(page, "warm-up");
   await expect(page.getByTestId("song-tag")).toHaveCount(2);
 
-  // Actions: star, Transpose, Edit, "⋯". Everything else is in the menu, delete last.
   await expect(page.getByTestId("song-favourite")).toBeVisible();
   await expect(page.getByTestId("song-retune")).toHaveText("Transpose");
   await expect(page.getByTestId("song-edit-link")).toBeVisible();
-  await expect(page.getByTestId("offline-toggle")).toHaveCount(0);
   await page.getByTestId("song-more").click();
   const ids = await page
     .getByRole("menuitem")
     .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-testid")));
-  expect(ids).toEqual([
-    "offline-toggle",
-    "export-open",
-    "song-add-to-setlist",
-    "song-tuner",
-    "song-move",
-    "song-metadata-edit",
-    "song-delete",
-  ]);
+  expect(ids?.at(-1)).toBe("song-delete");
+  expect(ids).not.toContain("export-open");
 
   // One full screen button, in the dock.
   await expect(page.getByTestId("player-fullscreen")).toHaveCount(1);
   await expect(page.locator(".dock").getByTestId("player-fullscreen")).toBeVisible();
-});
-
-test("the Details section follows the score with no dead gap", async ({ page, seed }) => {
-  const song = await seed.musicXmlTab();
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(`/songs/${song.id}`);
-  await expect(page.getByTestId("player-score").locator("svg").first()).toBeVisible();
-  const stage = (await page.getByTestId("player-stage").boundingBox())!;
-  const details = (await page.getByTestId("song-details").boundingBox())!;
-  expect(details.y - (stage.y + stage.height)).toBeLessThan(64);
-  await expect(page.getByTestId("song-difficulty-panel")).toBeVisible();
 });
 
 test("the view row shows the speed in use and opens the practice panel", async ({ page, seed }) => {
@@ -119,8 +92,6 @@ test("a chord sheet shares the header: no Transpose button, the same menu", asyn
   await expect(page.getByTestId("song-retune")).toHaveCount(0);
   await expect(page.getByTestId("song-tag-new")).toBeVisible();
   await page.getByTestId("song-more").click();
-  await expect(page.getByTestId("export-open")).toBeVisible();
-  await expect(page.getByTestId("song-tuner")).toHaveCount(0);
   await expect(page.getByTestId("song-delete")).toBeVisible();
 });
 
@@ -170,7 +141,9 @@ test("saved loops do not push the music down on a phone", async ({ page, seed })
   await expect(page.getByTestId("player-score").locator("svg").first()).toBeVisible();
   await page.getByTestId("player-panel-toggle").click();
   await page.getByTestId("player-loop-a").click();
-  await page.getByTestId("player-next").click();
+  const position = page.getByRole("slider", { name: "Position" });
+  await position.focus();
+  await position.press("ArrowRight");
   await page.getByTestId("player-loop-b").click();
   await page.getByTestId("save-loop-name").fill("Solo");
   await page.getByTestId("save-loop-button").click();

@@ -106,14 +106,6 @@ export function storedPlayerView(userId?: string | null): PlayerView {
   }
 }
 
-function storedLibrary(): string {
-  try {
-    return localStorage.getItem(LIBRARY_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
-
 const initialSort = storedSort();
 
 export const ui = $state({
@@ -157,7 +149,7 @@ export const ui = $state({
   /** Read-only song links are on (`FRETBOOK_SHARE_LINKS`). */
   shareLinks: false,
   /** Band library being browsed. Empty is the personal library. */
-  libraryId: storedLibrary(),
+  libraryId: "",
   version: null as string | null,
   commit: null as string | null,
   defaultInstrument: "bass-4",

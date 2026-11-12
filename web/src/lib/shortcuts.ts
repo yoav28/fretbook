@@ -8,8 +8,6 @@ export type ShortcutAction =
   | "previousBar"
   | "nextBar"
   | "tap"
-  | "metronome"
-  | "countIn"
   | "muteTrack"
   | "soloTrack"
   | "volumeDown"
@@ -33,8 +31,6 @@ export const SHORTCUTS: Shortcut[] = [
   { action: "previousBar", keys: ["ArrowLeft"], label: "←", labelKey: "shortcuts.previousBar" },
   { action: "nextBar", keys: ["ArrowRight"], label: "→", labelKey: "shortcuts.nextBar" },
   { action: "tap", keys: ["t", "T"], label: "T", labelKey: "shortcuts.tap" },
-  { action: "metronome", keys: ["m", "M"], label: "M", labelKey: "shortcuts.metronome" },
-  { action: "countIn", keys: ["c", "C"], label: "C", labelKey: "shortcuts.countIn" },
   { action: "muteTrack", keys: ["x", "X"], label: "X", labelKey: "shortcuts.muteTrack" },
   { action: "soloTrack", keys: ["s", "S"], label: "S", labelKey: "shortcuts.soloTrack" },
   { action: "volumeDown", keys: ["-", "_"], label: "−", labelKey: "shortcuts.volumeDown" },
@@ -47,12 +43,14 @@ export const SHORTCUTS: Shortcut[] = [
 /** The action for a key press, or null when it is not ours (or a modifier is held). */
 export function shortcutFor(event: {
   key: string;
+  code?: string;
   ctrlKey: boolean;
   metaKey: boolean;
   altKey: boolean;
 }): ShortcutAction | null {
   if (event.ctrlKey || event.metaKey || event.altKey) return null;
-  return SHORTCUTS.find((item) => item.keys.includes(event.key))?.action ?? null;
+  const key = event.code === "Space" || event.key === "Spacebar" ? " " : event.key;
+  return SHORTCUTS.find((item) => item.keys.includes(key))?.action ?? null;
 }
 
 export const RATES = [0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5];

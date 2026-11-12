@@ -10,7 +10,7 @@ test("paste a chord sheet into the Add box without saying what it is", async ({ 
   await page.getByTestId("any-text").fill("G        C\nHello my friend\n");
   await page.getByTestId("any-submit").click();
 
-  await expect(page).toHaveURL(/\/songs\/[^/]+$/);
+  await expect(page).toHaveURL(/\/songs\/(?:[^/]+\/)?[^/]+$/);
   await expect(page.getByTestId("chord-name").first()).toBeVisible();
 });
 
@@ -25,7 +25,7 @@ test("drop a score whose file name gives nothing away", async ({ page, seed }) =
     ),
   });
 
-  await expect(page).toHaveURL(/\/songs\/[^/]+$/);
+  await expect(page).toHaveURL(/\/songs\/(?:[^/]+\/)?[^/]+$/);
   await expect(page.getByTestId("song-heading")).toHaveText("Practice Riff");
   expect(await seed.list()).toHaveLength(1);
 });
@@ -73,10 +73,10 @@ for (const [target, useMoreWays] of [
         }
       };
       await drop();
-      await expect(page).toHaveURL(/\/songs\/[^/]+$/);
+      await expect(page).toHaveURL(/\/songs\/(?:[^/]+\/)?[^/]+$/);
       await drop();
       if (choice === "skip") await expect(page.getByTestId("add-notice")).toBeVisible();
-      else await expect(page).toHaveURL(/\/songs\/[^/]+$/);
+      else await expect(page).toHaveURL(/\/songs\/(?:[^/]+\/)?[^/]+$/);
       await expect.poll(async () => (await seed.list()).length).toBe(1);
     });
   }
@@ -99,7 +99,7 @@ for (const choice of ["skip", "keep_both"] as const) {
       mimeType: "text/plain",
       buffer,
     });
-    await expect(page).toHaveURL(/\/songs\/[^/]+$/);
+    await expect(page).toHaveURL(/\/songs\/(?:[^/]+\/)?[^/]+$/);
     expect(await seed.list()).toHaveLength(1);
 
     await page.goto("/");

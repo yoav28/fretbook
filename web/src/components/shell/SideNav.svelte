@@ -3,56 +3,10 @@
   import Icon from "../Icon.svelte";
   import { t } from "../../lib/i18n.svelte";
   import { followLink, hrefFor, routePath } from "../../lib/router.svelte";
-  import { sideNavIds } from "../../lib/nav";
-  import { lessonsEnabled, openSheet, ui } from "../../lib/ui.svelte";
+  import { openSheet, ui } from "../../lib/ui.svelte";
 
   const path = $derived(routePath());
-  const isAdmin = $derived(ui.me?.role === "admin");
   const activeSong = $derived(path.match(/^\/songs\/([^/]+)/)?.[1] ?? "");
-
-  // The same five destinations as the tab bar, in the same order.
-  const lessonsOn = $derived(lessonsEnabled(ui.me));
-  const destinations = $derived(
-    sideNavIds(lessonsOn).map((id) => all.find((item) => item.id === id)!),
-  );
-  const all = $derived([
-    {
-      id: "practice",
-      icon: "target",
-      label: t("practiceLog.nav"),
-      path: "/practice",
-      current: path === "/practice" || path === "/practice/",
-    },
-    {
-      id: "library",
-      icon: "library",
-      label: t("library.heading"),
-      path: "/",
-      current: path === "/" || path.startsWith("/songs/"),
-    },
-    {
-      id: "lessons",
-      icon: "graduation",
-      label: t("lessons.nav"),
-      path: "/lessons",
-      current: path === "/lessons" || path.startsWith("/lessons/"),
-    },
-    {
-      id: "setlists",
-      icon: "listMusic",
-      label: t("setlists.nav"),
-      path: "/setlists",
-      current: path.startsWith("/setlists"),
-    },
-    {
-      id: "tools",
-      icon: "wrench",
-      label: t("tools.nav"),
-      path: "/tools",
-      current: path.startsWith("/tools"),
-    },
-  ]);
-
   const favourites = $derived(ui.favourites.slice(0, 5));
 </script>
 
@@ -78,19 +32,17 @@
   {/if}
 
   <nav class="group" aria-label={t("nav.main")}>
-    {#each destinations as item (item.id)}
-      <a
-        class="side-link"
-        data-testid={`nav-${item.id}`}
-        data-tip={item.label}
-        href={hrefFor(item.path)}
-        aria-label={item.label}
-        aria-current={item.current ? "page" : undefined}
-        onclick={(event) => followLink(event, item.path)}
-      >
-        <Icon name={item.icon} size={19} /><span class="label">{item.label}</span>
-      </a>
-    {/each}
+    <a
+      class="side-link"
+      data-testid="nav-library"
+      data-tip={t("library.heading")}
+      href={hrefFor("/")}
+      aria-label={t("library.heading")}
+      aria-current={path === "/" || path.startsWith("/songs/") ? "page" : undefined}
+      onclick={(event) => followLink(event, "/")}
+    >
+      <Icon name="library" size={19} /><span class="label">{t("library.heading")}</span>
+    </a>
   </nav>
 
   {#if favourites.length}
@@ -118,44 +70,6 @@
       {/each}
     </nav>
   {/if}
-
-  <div class="group bottom">
-    <a
-      class="side-link"
-      data-testid="nav-bands"
-      data-tip={t("bands.nav")}
-      href={hrefFor("/bands")}
-      aria-label={t("bands.nav")}
-      aria-current={path === "/bands" || path === "/bands/" ? "page" : undefined}
-      onclick={(event) => followLink(event, "/bands")}
-    >
-      <Icon name="users" size={19} /><span class="label">{t("bands.nav")}</span>
-    </a>
-    {#if isAdmin}
-      <a
-        class="side-link"
-        data-testid="nav-admin"
-        data-tip={t("account.admin")}
-        href={hrefFor("/admin")}
-        aria-label={t("account.admin")}
-        aria-current={path === "/admin" ? "page" : undefined}
-        onclick={(event) => followLink(event, "/admin")}
-      >
-        <Icon name="lock" size={19} /><span class="label">{t("account.admin")}</span>
-      </a>
-    {/if}
-    <a
-      class="side-link"
-      data-testid="open-settings"
-      data-tip={t("settings.heading")}
-      href={hrefFor("/settings")}
-      aria-label={t("settings.heading")}
-      aria-current={path === "/settings" || path === "/settings/" ? "page" : undefined}
-      onclick={(event) => followLink(event, "/settings")}
-    >
-      <Icon name="settings" size={19} /><span class="label">{t("settings.heading")}</span>
-    </a>
-  </div>
 </aside>
 
 <style>
@@ -167,10 +81,6 @@
   .favourites {
     padding-top: var(--sp-4);
     border-top: 1px solid var(--line);
-  }
-
-  .bottom {
-    margin-top: auto;
   }
 
   .new-button {
@@ -257,7 +167,6 @@
     color: var(--text-3);
   }
 
-  /* Tablet: an icon rail. The label becomes a tooltip on hover and keyboard focus. */
   @media (max-width: 1099px) {
     .label,
     .favourites,
@@ -308,9 +217,7 @@
     }
 
     .side-link:hover::after,
-    .side-link:focus-visible::after,
-    .new-button:hover::after,
-    .new-button:focus-visible::after {
+    .new-button:hover::after {
       opacity: 1;
     }
 

@@ -1,14 +1,12 @@
 <script lang="ts">
   import { parse, transposeChord } from "../lib/chordpro";
   import { t } from "../lib/i18n.svelte";
-  import { segmentKey } from "../lib/listen/chordSheetWait";
 
   let {
     text,
     transpose = 0,
     flats = false,
-    active = null,
-  }: { text: string; transpose?: number; flats?: boolean; active?: string | null } = $props();
+  }: { text: string; transpose?: number; flats?: boolean } = $props();
 
   const sheet = $derived(parse(text));
 </script>
@@ -23,13 +21,7 @@
         {#if line.kind === "lyrics"}
           <div class="chord-line">
             {#each line.segments as segment, segmentIndex (segmentIndex)}
-              <span
-                class="chord-segment"
-                class:chord-active={active === segmentKey(blockIndex, lineIndex, segmentIndex)}
-                data-active={active === segmentKey(blockIndex, lineIndex, segmentIndex)
-                  ? "true"
-                  : undefined}
-              >
+              <span class="chord-segment">
                 <span class="chord-name" data-testid="chord-name"
                   >{segment.chord ? transposeChord(segment.chord, transpose, flats) : " "}</span
                 >
