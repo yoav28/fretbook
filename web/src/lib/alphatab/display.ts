@@ -23,10 +23,11 @@ const scoreHeaderElements = [
   "ScoreMusic",
   "ScoreWordsAndMusic",
   "ScoreCopyright",
+  "GuitarTuning",
 ] as const;
 
 /**
- * Hides alphaTab's own title and artist header. The song header already shows them, and on
+ * Hides alphaTab's own title, artist and tuning header. The song header already shows them, and on
  * a phone the header pushes the first bar of music about 180px down the screen.
  */
 export function hideScoreHeader(settings: alphaTab.Settings, alphaTabApi: typeof alphaTab): void {
