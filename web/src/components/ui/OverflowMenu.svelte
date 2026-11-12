@@ -233,8 +233,7 @@
     text-decoration: none;
   }
 
-  .item:hover:not(:disabled),
-  .item:focus-visible {
+  .item:hover:not(:disabled) {
     background: var(--surface-2);
   }
 

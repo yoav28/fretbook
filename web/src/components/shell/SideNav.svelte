@@ -217,9 +217,7 @@
     }
 
     .side-link:hover::after,
-    .side-link:focus-visible::after,
-    .new-button:hover::after,
-    .new-button:focus-visible::after {
+    .new-button:hover::after {
       opacity: 1;
     }
 

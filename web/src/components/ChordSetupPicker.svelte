@@ -66,8 +66,7 @@
     font-weight: 600;
   }
 
-  .compact select:hover,
-  .compact select:focus-visible {
+  .compact select:hover {
     border-color: var(--line-strong);
   }
 </style>
