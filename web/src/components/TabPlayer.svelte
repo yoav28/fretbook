@@ -757,6 +757,7 @@
     if (audioMode && audioEl) {
       const targetTime = Math.max(0, startsNow()[index] ?? 0);
       audioEl.currentTime = targetTime;
+      if (player.api) player.api.tickPosition = tickOfBar(index);
       pausedAudioSeek = audioEl.paused
         ? { measure: index, position: 0, seconds: targetTime }
         : null;
@@ -792,6 +793,7 @@
       const ratio = ticks > 0 ? Math.max(0, Math.min(1, beat.playbackStart / ticks)) : 0;
       const seconds = Math.max(0, barStart + (barEnd - barStart) * ratio);
       audioEl.currentTime = seconds;
+      instance.tickPosition = tickOfBar(bar);
       pausedAudioSeek = audioEl.paused
         ? { measure: played, position: beat.displayStart, seconds }
         : null;
