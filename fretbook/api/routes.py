@@ -48,7 +48,6 @@ from fretbook.score.instruments import family, get_preset, is_preset, presets_pa
 from fretbook.score.model import ScoreDocument, content_hash
 from fretbook.storage.media import AUDIO_TYPES
 from fretbook.storage.repository import RevisionConflict
-from fretbook.tags import suggest_tags
 
 router = APIRouter()
 
@@ -113,7 +112,6 @@ class ImportDocumentBody(_Body):
     slug: str | None = Field(default=None, max_length=60)
     document: ScoreDocument
     on_duplicate: Literal["skip", "keep_both", "replace"] = "keep_both"
-    tags: list[str] = Field(default_factory=list)
 
 
 class SettingsBody(_Body):
@@ -254,12 +252,11 @@ def update_settings(
 @router.get("/api/songs", response_model=SongPage, tags=["songs"], responses=AUTH_RESPONSES)
 def list_songs(
     q: str = Query(
-        "", max_length=200, description="Words matched as prefixes against title, artist, chord-sheet lyrics and tags."
+        "", max_length=200, description="Words matched as prefixes against title, artist and chord-sheet lyrics."
     ),
     sort: Literal["title", "artist", "added", "updated", "opened", "difficulty"] = "updated",
     order: Literal["asc", "desc"] | None = Query(None, description="Defaults to the natural order of `sort`."),
     instrument: Literal["all", "bass", "electric", "acoustic", "chords"] = "all",
-    tag: list[str] = Query([], max_length=10, description="Repeat to require several tags; a song needs all of them."),
     favourite: bool = Query(False, description="Only starred songs."),
     difficulty_min: int | None = Query(None, ge=1, le=10, description="Songs at or above this level (1 to 10)."),
     difficulty_max: int | None = Query(None, ge=1, le=10, description="Songs at or below this level (1 to 10)."),
@@ -285,7 +282,6 @@ def list_songs(
         sort=sort,
         order=order,
         instrument=instrument,
-        tags=tag,
         favourite=favourite,
         difficulty_min=difficulty_min,
         difficulty_max=difficulty_max,
@@ -688,8 +684,6 @@ def import_document(
     title = body.title.strip() or "Untitled"
     hash_val = content_hash(body.document)
     source_ref: dict[str, Any] = {"content_hash": hash_val}
-    if body.tags:
-        source_ref["tags"] = body.tags
 
     duplicate = ctx.songs.find_existing_duplicate(
         user.user_id, content_hash=hash_val, title=title, artist=body.artist.strip()
@@ -708,8 +702,6 @@ def import_document(
                 source_ref=source_ref,
             )
             if updated is not None:
-                if body.tags:
-                    ctx.songs.add_tags(user.user_id, [duplicate["id"]], body.tags)
                 return _json(require_song(ctx, user.user_id, duplicate["id"]), status_code=200)
 
     song = ctx.songs.create_song(
@@ -721,11 +713,6 @@ def import_document(
         source_ref=source_ref,
         slug=body.slug or title,
     )
-    tags_to_add = suggest_tags(song)
-    if body.tags:
-        tags_to_add = list(dict.fromkeys([*tags_to_add, *body.tags]))
-    if tags_to_add:
-        ctx.songs.add_tags(user.user_id, [song["id"]], tags_to_add)
     return _json(require_song(ctx, user.user_id, song["id"]), status_code=201)
 
 

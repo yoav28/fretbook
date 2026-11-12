@@ -91,10 +91,7 @@ every guitar and bass part with suggested instruments.
 
 - **Default instrument** (top of the library) is a per-user setting. It is the preset for new tabs and added tracks, and
   decides which Songsterr parts start checked.
-- **Tags and favourites.** Free-form tags (per user, up to 30 of 40 characters) and a favourite star, edited on the song
-  page: press the star, and add tags with the **+ Tag** chip (on a phone, tags are in **Song details** in the **⋯** menu). In the library, pick several tag chips to show songs that have all of them, turn on *Favourites*, or use *Select*
-  to tag many songs at once. A new import starts with tags the file gives away, such as the instrument, an alternate
-  tuning like Drop D, the capo, and the key of a chord sheet.
+- **Favourites.** Mark songs with the star on the song page, then turn on *Favourites* in the library to show them.
 - **Transpose, retune or convert** a tab with the **Transpose** button on the song page (it opens **Transpose or retune**). A preview shows the new part and
   what had to give; then save it as a new track next to the original or replace the track. Choose to transpose by
   semitones, retune keeping the pitches (standard to Drop D or Eb, a different capo, 4 to 5-string bass, 6 to 7-string

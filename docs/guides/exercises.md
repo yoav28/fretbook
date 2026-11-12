@@ -31,4 +31,3 @@ The chips at the top load ready-made drills: a pentatonic box, a major octave, D
 ## Notes
 
 - Strumming patterns are written as chord beats; the player sounds all the notes together, and an up-stroke uses only the top three strings.
-- Exercises are tagged `exercise` when saved.

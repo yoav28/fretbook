@@ -1,9 +1,7 @@
 <script lang="ts">
   import FirstRun from "./FirstRun.svelte";
   import Icon from "./Icon.svelte";
-  import ManageTagsSheet from "./ManageTagsSheet.svelte";
   import RecentImports from "./RecentImports.svelte";
-  import FiltersPopover from "./library/FiltersPopover.svelte";
   import SongCard from "./library/SongCard.svelte";
   import Chip from "./ui/Chip.svelte";
   import Page from "./ui/Page.svelte";
@@ -18,13 +16,11 @@
     refreshSongs,
     setSort,
     starSong,
-    toggleTagFilter,
     ui,
     type LibraryFilter,
   } from "../lib/ui.svelte";
 
   let error = $state("");
-  let managingTags = $state(false);
   let searchInput = $state<HTMLInputElement>();
   let searchSeen = ui.search.trim();
   let titleScrolled = $state(false);
@@ -72,7 +68,7 @@
   // App loads the first page; this only reacts to changes once it has.
   $effect(() => {
     const text = ui.search.trim();
-    void [ui.filter, ui.sort, ui.order, ui.tags, ui.favouritesOnly];
+    void [ui.filter, ui.sort, ui.order, ui.favouritesOnly];
     if (!ui.loaded) return;
     const delay = text === searchSeen ? 0 : 200;
     searchSeen = text;
@@ -124,9 +120,6 @@
 
   const paged = $derived(ui.nextCursor !== null && ui.nextCursor !== undefined);
 
-  function clearTags() {
-    ui.tags = [];
-  }
 </script>
 
 <svelte:window onkeydown={onKeydown} onscroll={onScroll} />
@@ -177,9 +170,6 @@
               {/each}
             </select>
           </label>
-          {#if !ui.demoMode}
-            <FiltersPopover count={ui.tags.length} onmanagetags={() => (managingTags = true)} />
-          {/if}
         </div>
       </div>
 
@@ -197,7 +187,7 @@
           {/each}
           <Chip
             variant="filter"
-            label={t("tags.favourites")}
+            label={t("library.favourites")}
             icon={ui.favouritesOnly ? "starFilled" : "star"}
             count={countFor("favourites")}
             testid="library-filter-favourites"
@@ -207,23 +197,6 @@
         </div>
       </div>
 
-      {#if ui.tags.length}
-        <div class="active-tags" role="group" aria-label={t("tags.filters")}>
-          {#each ui.tags as tag (tag)}
-            <button
-              type="button"
-              data-testid="library-active-filter"
-              aria-label={t("libraryToolbar.remove", { filter: tag })}
-              onclick={() => toggleTagFilter(tag)}
-            >
-              {tag}<Icon name="close" size={14} />
-            </button>
-          {/each}
-          <button type="button" data-testid="library-clear-filters" onclick={clearTags}
-            >{t("libraryToolbar.clear")}</button
-          >
-        </div>
-      {/if}
     {/if}
 
     {#if error}<p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>{/if}
@@ -255,14 +228,13 @@
             ? t("library.searchEmpty", { query: ui.search.trim() })
             : t("library.filterEmpty")}
         </p>
-        {#if ui.tags.length || ui.favouritesOnly || ui.filter !== "all"}
+        {#if ui.favouritesOnly || ui.filter !== "all"}
           <button
-            data-testid="library-clear-tags"
+            data-testid="library-clear-filters"
             onclick={() => {
-              clearTags();
               ui.favouritesOnly = false;
               ui.filter = "all";
-            }}>{t("tags.clearFilters")}</button
+            }}>{t("library.clearFilters")}</button
           >
         {/if}
         {#if ui.search.trim()}
@@ -299,8 +271,6 @@
     {/if}
   </section>
 </Page>
-
-<ManageTagsSheet open={managingTags} onclose={() => (managingTags = false)} />
 
 <style>
   .toolbar {
@@ -380,33 +350,6 @@
 
   .chips::-webkit-scrollbar {
     display: none;
-  }
-
-  .active-tags {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--sp-2);
-    margin: calc(-1 * var(--sp-2)) 0 var(--sp-4);
-  }
-
-  .active-tags button {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--sp-1);
-    min-height: 30px;
-    padding: 0 var(--sp-2);
-    border: 1px solid var(--accent-ring);
-    border-radius: var(--r-pill);
-    background: var(--accent-soft);
-    color: var(--accent-text);
-    font-size: var(--fs-xs);
-  }
-
-  .active-tags button:last-child {
-    border-color: transparent;
-    background: transparent;
-    text-decoration: underline;
   }
 
   .song-grid {

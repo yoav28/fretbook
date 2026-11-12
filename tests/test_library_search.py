@@ -102,21 +102,6 @@ def test_lyrics_follow_edits_and_survive_renames(client: TestClient) -> None:
     assert _titles(client, q="second") == []
 
 
-def test_search_finds_tags_and_follows_tag_changes(client: TestClient) -> None:
-    a = _tab(client, "Alpha")
-    b = _chords(client, "Beta")
-    assert client.put(f"/api/songs/{a}/tags", json={"tags": ["Campfire", "slow jam"]}).status_code == 200
-    client.put(f"/api/songs/{b}/tags", json={"tags": ["Campfire"]})
-
-    assert _titles(client, q="campfire", sort="title") == ["Alpha", "Beta"]
-    assert _titles(client, q="slow") == ["Alpha"]
-    client.put(f"/api/songs/{a}/tags", json={"tags": ["other"]})
-    assert _titles(client, q="campfire") == ["Beta"]
-    assert _titles(client, q="slow") == []
-    client.delete(f"/api/songs/{b}")
-    assert _titles(client, q="campfire") == []
-
-
 def _snippets(client: TestClient, q: str) -> dict[str, str | None]:
     response = client.get("/api/songs", params={"q": q})
     assert response.status_code == 200, response.text
@@ -128,7 +113,6 @@ def test_lyric_only_matches_carry_a_snippet(client: TestClient) -> None:
     sheet_id = client.post("/api/songs", json=sheet).json()["id"]
     named = {"content_kind": "chords", "title": "Paradise", "artist": "City Band", "chordpro": LYRICS_SHEET}
     client.post("/api/songs", json=named)
-    client.put(f"/api/songs/{sheet_id}/tags", json={"tags": ["taken"]})
 
     # Only the sheet whose title and artist miss the words gets one, with the matched words marked.
     assert _snippets(client, "paradise city") == {
@@ -136,8 +120,6 @@ def test_lyric_only_matches_carry_a_snippet(client: TestClient) -> None:
         "Paradise": None,
     }
     assert _snippets(client, "band") == {"Paradise": None}
-    # A tag match is not a lyric match, even though the sheet has lyrics.
-    assert _snippets(client, "taken") == {"Sheet": None}
     # One word in the title and one in the lyrics: the lyric word is shown.
     assert _snippets(client, "paradise take")["Paradise"] == "\x02Take\x03 me down to the \x02paradise\x03 city"
     assert all(item["lyrics_snippet"] is None for item in client.get("/api/songs").json()["items"])

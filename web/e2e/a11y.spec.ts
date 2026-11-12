@@ -76,23 +76,6 @@ for (const scheme of ["light", "dark"] as const) {
       await expectAccessible(page, "player");
     });
 
-    test("tag editing, tag filtering, and YouTube audio have no axe violations", async ({
-      page,
-      seed,
-    }) => {
-      const tab = await seed.musicXmlTab();
-      await page.request.put(`/api/songs/${tab.id}/tags`, { data: { tags: ["funk"] } });
-      await page.goto(`/songs/${tab.id}`);
-      await page.getByTestId("song-tag-new").click();
-      await expect(page.getByTestId("song-tag-input")).toBeVisible();
-      await expectAccessible(page, "song tag input");
-
-      await page.goto("/");
-      await page.getByTestId("library-filters").click();
-      await expect(page.getByRole("dialog", { name: "Filter by tag" })).toBeVisible();
-      await expectAccessible(page, "tag filters");
-    });
-
     test("the sync sheet has no axe violations", async ({ page, seed }) => {
       const song = await seed.syncedSongWithAudio();
       await page.goto(`/songs/${song.id}`);

@@ -14,10 +14,8 @@ vi.mock("../lib/api", () => ({
   retryJob: (...args: unknown[]) => mockRetryJob(...args),
   dismissJob: (...args: unknown[]) => mockDismissJob(...args),
   listSongs: (...args: unknown[]) => mockListSongs(...args),
-  listTags: vi.fn().mockResolvedValue([]),
   getFacets: vi.fn().mockResolvedValue({ keys: [], genres: [] }),
   setFavourite: vi.fn(),
-  addTags: vi.fn(),
 }));
 
 function makeJob(overrides: Partial<Job>): Job {

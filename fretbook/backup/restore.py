@@ -15,7 +15,7 @@ import sqlite3
 import uuid
 import zipfile
 from pathlib import Path
-from typing import IO, Annotated, Any, Literal
+from typing import IO, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -90,8 +90,6 @@ class _Song(BaseModel):
     source_ref: dict[str, Any] = Field(default_factory=dict)
     file: str = Field(max_length=500)
     media: list[_Media] = Field(default_factory=list)
-    # Untrusted like the rest: the repository cleans, dedupes and caps tags before storing them.
-    tags: list[Annotated[str, Field(max_length=200)]] = Field(default_factory=list, max_length=1000)
     favourite: bool = False
     # Additive: archives from before song metadata have none. Checked like a PATCH before it is stored.
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -474,6 +472,7 @@ def _restore_song(
     document: ScoreDocument | None = None
     text: str | None = None
     raw = _read_member(archive, entry.file, MAX_JSON_BYTES)
+    source_ref = {key: value for key, value in entry.source_ref.items() if key != "tags"}
     if entry.content_kind == "tab":
         document = ScoreDocument.model_validate(json.loads(raw)["document"])
     else:
@@ -485,12 +484,11 @@ def _restore_song(
         title=entry.title.strip() or "Untitled",
         artist=entry.artist.strip(),
         source_kind=entry.source_kind,
-        source_ref=entry.source_ref,
+        source_ref=source_ref,
         document=document,
         chordpro=text,
         song_id=keep_id,
     )
-    songs.set_tags(owner_id, song["id"], entry.tags)
     songs.set_favourite(owner_id, song["id"], entry.favourite)
     try:
         wanted = {name: value for name, value in entry.metadata.items() if name in METADATA_FIELDS}

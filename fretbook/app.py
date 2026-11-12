@@ -18,6 +18,7 @@ from starlette.responses import Response
 from fretbook import __version__
 from fretbook.api.admin_routes import router as admin_router
 from fretbook.api.ascii_tab_routes import router as ascii_tab_router
+from fretbook.api.favourite_routes import router as favourite_router
 from fretbook.api.autosync_routes import router as autosync_router
 from fretbook.api.backup import RESTORE_PATH
 from fretbook.api.backup import router as backup_router
@@ -37,7 +38,6 @@ from fretbook.api.routes import router
 from fretbook.api.setlist_routes import router as setlist_router
 from fretbook.api.share_routes import router as share_router
 from fretbook.api.stem_routes import router as stem_router
-from fretbook.api.tag_routes import router as tag_router
 from fretbook.api.token_routes import router as token_router
 from fretbook.api.transcribe_routes import router as transcribe_router
 from fretbook.api.universal_routes import router as universal_router
@@ -293,10 +293,6 @@ def create_app(
                 "description": "Background job status, progress keys, and errors.",
             },
             {
-                "name": "tags",
-                "description": "Free-form tags and the favourite star on the caller's songs.",
-            },
-            {
                 "name": "tokens",
                 "description": (
                     "Personal API tokens for scripts. Send one as `Authorization: Bearer <token>` on any /api route; "
@@ -325,6 +321,7 @@ def create_app(
     app.include_router(share_router)
     app.include_router(backup_router)
     app.include_router(ascii_tab_router)
+    app.include_router(favourite_router)
     app.include_router(midi_router)
     app.include_router(autosync_router)
     app.include_router(stem_router)
@@ -332,7 +329,6 @@ def create_app(
     app.include_router(youtube_audio_router)
     app.include_router(retune_router)
     app.include_router(universal_router)
-    app.include_router(tag_router)
     app.include_router(metadata_router)
     app.include_router(bulk_router)
     app.include_router(token_router)

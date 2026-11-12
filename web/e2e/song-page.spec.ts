@@ -1,6 +1,6 @@
 // Issue #280: the song page header order, one toolbar, and the music on the first phone screen.
 import { expect, test } from "./support/fixtures";
-import { addTag, menuItem } from "./support/song-page";
+import { menuItem } from "./support/song-page";
 
 test("on a phone the first tab system is visible above the dock without scrolling", async ({
   page,
@@ -25,7 +25,7 @@ test("on a phone the first tab system is visible above the dock without scrollin
   await expect(page.getByTestId("song-more")).toBeVisible();
 });
 
-test("the desktop header reads back link, title, facts and tags, then the view row and score", async ({
+test("the desktop header reads back link, title, facts, then the view row and score", async ({
   page,
   seed,
 }) => {
@@ -44,11 +44,6 @@ test("the desktop header reads back link, title, facts and tags, then the view r
   expect(title).toBeLessThan(facts);
   expect(facts).toBeLessThan(viewRow);
   expect(viewRow).toBeLessThan(score);
-
-  await expect(page.getByTestId("song-tag")).toHaveCount(1);
-  await expect(page.getByTestId("song-tag-input")).toHaveCount(0);
-  await addTag(page, "warm-up");
-  await expect(page.getByTestId("song-tag")).toHaveCount(2);
 
   await expect(page.getByTestId("song-favourite")).toBeVisible();
   await expect(page.getByTestId("song-retune")).toHaveText("Transpose");
@@ -90,7 +85,6 @@ test("a chord sheet shares the header: no Transpose button, the same menu", asyn
   await page.goto(`/songs/${song.id}`);
   await expect(page.getByTestId("song-heading")).toHaveText(song.title);
   await expect(page.getByTestId("song-retune")).toHaveCount(0);
-  await expect(page.getByTestId("song-tag-new")).toBeVisible();
   await page.getByTestId("song-more").click();
   await expect(page.getByTestId("song-delete")).toBeVisible();
 });

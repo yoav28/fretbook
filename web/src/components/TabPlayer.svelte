@@ -24,6 +24,7 @@
   import { AudioMedia } from "../lib/alphatab/audioHandler";
   import { planFollow, SynthFollower } from "../lib/alphatab/synthFollow";
   import { hideScoreHeader, separateEffectBands } from "../lib/alphatab/display";
+  import { renderTuningLabels } from "../lib/alphatab/tuningLabels";
   import { preferredTrack, scoreToAlphaTex } from "../lib/alphatex";
   import { recordingGain, synthGain } from "../lib/practice";
   import { barTicks } from "../lib/durations";
@@ -115,26 +116,6 @@
   let saveLabel = $state("");
   let saveTimer = 0;
   let pendingSync: (() => Promise<void>) | null = null;
-
-  function updateBeatSpotlight(element: HTMLDivElement) {
-    requestAnimationFrame(() => {
-      const cursors = element.querySelector<HTMLElement>(".at-cursors");
-      const beatCursor = cursors?.querySelector<HTMLElement>(".at-cursor-beat");
-      if (!cursors || !beatCursor) return;
-      let spotlight = cursors.querySelector<HTMLElement>(".at-beat-spotlight");
-      if (!spotlight) {
-        spotlight = document.createElement("div");
-        spotlight.setAttribute("class", "at-beat-spotlight");
-        cursors.insertBefore(spotlight, beatCursor);
-      }
-      const cursorBox = beatCursor.getBoundingClientRect();
-      const cursorLayerBox = cursors.getBoundingClientRect();
-      spotlight.style.left = `${cursorBox.left - cursorLayerBox.left + cursorBox.width / 2 - 32}px`;
-      spotlight.style.top = `${cursorBox.top - cursorLayerBox.top}px`;
-      spotlight.style.width = "64px";
-      spotlight.style.height = `${cursorBox.height}px`;
-    });
-  }
 
   $effect(() => {
     if (playing || handsFree.stage) return keepAwake();
@@ -413,6 +394,7 @@
     settings.core.logLevel = alphaTab.LogLevel.Warning;
     settings.core.enableLazyLoading = false;
     settings.display.staveProfile = staveProfile(untrack(() => ui.notation));
+    settings.display.padding = [65, 35, 35, 35];
     separateEffectBands(settings);
     const resources = settings.display.resources;
     resources.staffLineColor = alphaTab.model.Color.fromJson("#55565d")!;
@@ -439,6 +421,9 @@
       untrack(() => follow) && !onPhone ? alphaTab.ScrollMode.Continuous : alphaTab.ScrollMode.Off;
     const instance = new alphaTab.AlphaTabApi(element, settings);
     player.api = instance;
+    instance.renderFinished.on(() =>
+      renderTuningLabels(element, untrack(() => track.tuning_midi), untrack(() => ui.notation)),
+    );
     // The sticky chrome changes with stage, focus and setlist play-through: keep the offset current.
     const refreshOffset = () => {
       instance.settings.player.scrollOffsetY = -(16 + (onPhone ? stickyChromeBottom() : 0));
@@ -471,7 +456,6 @@
     });
     // Without audio, alphaTab's own events say where playback is, tempo changes included.
     instance.playedBeatChanged.on((beat) => {
-      updateBeatSpotlight(element);
       if (useAudio) return;
       currentMeasure = followPlayed(
         playedBars(untrack(() => song.document.bars)),
@@ -797,7 +781,6 @@
     if (played < 0) return;
     const tick = tickOfBar(played) + beat.playbackStart;
     instance.tickPosition = tick;
-    updateBeatSpotlight(element);
     tapIndex = played;
     currentMeasure = played;
     currentPosition = beat.displayStart;

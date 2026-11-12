@@ -42,7 +42,7 @@ export interface WorkerEnv {
 
 const PINNED = /^api\/(songs|setlists)\/[^/]+$/;
 const AUDIO = /^api\/songs\/[^/]+\/audio$/;
-const RUNTIME = /^api\/(songs|setlists|meta|me|tags)$/;
+const RUNTIME = /^api\/(songs|setlists|meta|me)$/;
 
 /** The path below the scope, or null for a URL outside the app. */
 export function relativePath(url: URL, scope: URL): string | null {

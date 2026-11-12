@@ -7,17 +7,14 @@ import LibraryView from "./LibraryView.svelte";
 const mockDeleteSong = vi.fn();
 const mockListSongs = vi.fn();
 const mockListJobs = vi.fn().mockResolvedValue([]);
-const mockAddTags = vi.fn();
 const mockGetFacets = vi.fn();
 const mockSetFavourite = vi.fn();
 
 vi.mock("../lib/api", () => ({
   deleteSong: (...args: unknown[]) => mockDeleteSong(...args),
   listSongs: (...args: unknown[]) => mockListSongs(...args),
-  listTags: vi.fn().mockResolvedValue([]),
   getFacets: (...args: unknown[]) => mockGetFacets(...args),
   setFavourite: (...args: unknown[]) => mockSetFavourite(...args),
-  addTags: (...args: unknown[]) => mockAddTags(...args),
   markSongOpened: vi.fn(),
   listJobs: (...args: unknown[]) => mockListJobs(...args),
   listLibraries: vi.fn().mockResolvedValue([]),
@@ -44,7 +41,6 @@ function makeSong(overrides: Partial<SongSummary>): SongSummary {
     updated_at: "2026-01-01T00:00:00Z",
     favourite: false,
     difficulty: null,
-    tags: [],
     key: null,
     key_detected: false,
     genre: "",
@@ -73,7 +69,6 @@ function fakeServer(query: SongQuery = {}): SongPage {
       (song) =>
         !query.instrument || query.instrument === "all" || family(song) === query.instrument,
     )
-    .filter((song) => (query.tag ?? []).every((tag) => song.tags.includes(tag)))
     .filter((song) => !query.favourite || song.favourite)
     .filter((song) => !query.key || song.key === query.key)
     .filter((song) => !query.genre || song.genre.toLowerCase() === query.genre.toLowerCase())
@@ -115,8 +110,6 @@ describe("LibraryView", () => {
     ui.counts = { all: 0, bass: 0, electric: 0, acoustic: 0, chords: 0, favourites: 0 };
     ui.loaded = true;
     ui.filter = "all";
-    ui.tags = [];
-    ui.tagList = [];
     ui.favouritesOnly = false;
     ui.level = "all";
     ui.keyFilter = "";
@@ -329,34 +322,16 @@ describe("LibraryView", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Failed to delete");
     confirmSpy.mockRestore();
   });
-  it("filters by several tags and by favourites through the server", async () => {
+  it("filters favourite songs through the server", async () => {
     await load([
-      makeSong({ id: "1", title: "One", tags: ["funk", "slap"], favourite: true }),
-      makeSong({ id: "2", title: "Two", tags: ["funk"] }),
+      makeSong({ id: "1", title: "One", favourite: true }),
+      makeSong({ id: "2", title: "Two" }),
     ]);
-    ui.tagList = [
-      { tag: "funk", count: 2 },
-      { tag: "slap", count: 1 },
-    ];
     render(LibraryView);
 
-    await fireEvent.click(screen.getByTestId("library-filters"));
-    const [funk, slap] = screen.getAllByTestId("library-tag");
-    await fireEvent.click(funk);
-    await waitFor(() => expect(screen.getAllByTestId("song-card")).toHaveLength(2));
-    await fireEvent.click(slap);
-    await waitFor(() => expect(screen.getAllByTestId("song-card")).toHaveLength(1));
-    expect(mockListSongs).toHaveBeenLastCalledWith(
-      expect.objectContaining({ tag: ["funk", "slap"] }),
-    );
-    expect(slap).toHaveAttribute("aria-pressed", "true");
-
-    await fireEvent.click(slap);
     await fireEvent.click(screen.getByTestId("library-filter-favourites"));
     await waitFor(() =>
-      expect(mockListSongs).toHaveBeenLastCalledWith(
-        expect.objectContaining({ tag: ["funk"], favourite: true }),
-      ),
+      expect(mockListSongs).toHaveBeenLastCalledWith(expect.objectContaining({ favourite: true })),
     );
     await waitFor(() => expect(screen.getAllByTestId("song-card")).toHaveLength(1));
   });
@@ -368,71 +343,6 @@ describe("LibraryView", () => {
 
     await fireEvent.click(screen.getByTestId("song-star"));
     expect(mockSetFavourite).toHaveBeenCalledWith("s1", true);
-  });
-
-  it("offers to clear tag filters when nothing matches", async () => {
-    await load([makeSong({ id: "1", tags: [] })]);
-    ui.tagList = [{ tag: "funk", count: 0 }];
-    render(LibraryView);
-
-    await fireEvent.click(screen.getByTestId("library-filters"));
-    await fireEvent.click(screen.getByTestId("library-tag"));
-    await waitFor(() => expect(screen.getByTestId("library-filter-empty")).toBeInTheDocument());
-    await fireEvent.click(screen.getByTestId("library-clear-tags"));
-    await waitFor(() => expect(screen.getAllByTestId("song-card")).toHaveLength(1));
-    expect(ui.tags).toEqual([]);
-  });
-
-  it("shows and clears the active tag filter", async () => {
-    await load([makeSong({ id: "1", tags: ["funk"] }), makeSong({ id: "2" })]);
-    ui.tagList = [{ tag: "funk", count: 1 }];
-    render(LibraryView);
-    expect(screen.queryByTestId("library-active-filter")).toBeNull();
-
-    await fireEvent.click(screen.getByTestId("library-filters"));
-    await fireEvent.click(screen.getByTestId("library-tag"));
-    await fireEvent.keyDown(document, { key: "Escape" });
-    expect(screen.getByTestId("library-filters")).toHaveFocus();
-    expect(screen.getByTestId("library-filters-count")).toHaveTextContent("1");
-    expect(screen.getByTestId("library-active-filter")).toHaveTextContent("funk");
-
-    await fireEvent.click(screen.getByTestId("library-clear-filters"));
-    expect(ui.tags).toEqual([]);
-    expect(screen.queryByTestId("library-active-filter")).toBeNull();
-  });
-
-  it("opens the tag filters on a phone without scrolling the page", async () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn((query: string) => ({
-        matches: query.includes("max-width"),
-        media: query,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      })),
-    );
-    try {
-      await load([makeSong({ id: "1", title: "One", tags: ["funk"] })]);
-      ui.tagList = [{ tag: "funk", count: 1 }];
-      render(LibraryView);
-
-      await fireEvent.click(screen.getByTestId("library-filters"));
-      const dialog = await screen.findByRole("dialog", { name: "Filter by tag" });
-      expect(dialog).toBeInTheDocument();
-      expect(await screen.getByTestId("library-tag")).toBeVisible();
-      expect(window.scrollY).toBe(0);
-
-      await fireEvent.keyDown(document, { key: "Escape" });
-      await waitFor(() =>
-        expect(screen.queryByRole("dialog", { name: "Filter by tag" })).toBeNull(),
-      );
-      expect(screen.getByTestId("library-filters")).toHaveFocus();
-    } finally {
-      vi.unstubAllGlobals();
-    }
   });
 
   it("keeps delete last in the song menu", async () => {

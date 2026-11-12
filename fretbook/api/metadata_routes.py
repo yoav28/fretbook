@@ -1,4 +1,4 @@
-"""A song's metadata (key, genre, year, album, notes) and cover art. Like tags, none of it changes the revision."""
+"""A song's metadata (key, genre, year, album, notes) and cover art. None of it changes the revision."""
 
 from __future__ import annotations
 

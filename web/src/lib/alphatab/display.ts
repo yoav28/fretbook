@@ -14,7 +14,6 @@ export function separateEffectBands(settings: alphaTab.Settings): void {
   settings.display.effectBandPaddingBottom = effectBandPaddingBottom;
 }
 
-/** Title block and tuning line alphaTab draws above the first system. */
 const scoreHeaderElements = [
   "ScoreTitle",
   "ScoreSubTitle",

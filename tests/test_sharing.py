@@ -65,7 +65,6 @@ def test_share_link_is_read_only_and_revocable(tmp_path: Path) -> None:
             },
         ).json()
         client.patch(f"/api/songs/{song['id']}/metadata", json={"notes": "private note", "genre": "Folk"})
-        client.post(f"/api/songs/{song['id']}/tags", json={"tags": ["rehearsal"]})
         audio = client.post(
             f"/api/songs/{song['id']}/audio",
             files={"file": ("room.wav", b"RIFFxxxxWAVEfmt ", "audio/wav")},
@@ -101,7 +100,6 @@ def test_share_link_is_read_only_and_revocable(tmp_path: Path) -> None:
         assert public["library_id"] == "shared"
         assert public["library_role"] == "view"
         assert public["notes"] == ""
-        assert public["tags"] == []
         assert public["genre"] == ""
         assert public["source_ref"] == {}
         assert song["id"] not in opened.text
@@ -199,9 +197,8 @@ def test_band_isolation_copy_and_move(app_factory, provider) -> None:  # noqa: F
         assert forbidden.status_code == 403
         assert forbidden.json()["detail"]["key"] == "library.readOnly"
         assert bea_client.post(f"/api/songs/{song['id']}/shares", json={}).status_code == 403
-        # Tags and the star are stored on the song, so a viewer cannot change them either.
+        # The star is stored on the song, so a viewer cannot change it.
         assert bea_client.put(f"/api/songs/{song['id']}/favourite", json={"favourite": True}).status_code == 403
-        assert bea_client.put(f"/api/songs/{song['id']}/tags", json={"tags": ["x"]}).status_code == 403
 
         uploaded = ada_client.post(
             f"/api/songs/{song['id']}/audio",

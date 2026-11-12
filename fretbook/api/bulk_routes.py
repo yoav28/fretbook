@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
@@ -33,13 +32,6 @@ class BulkImportAccepted(BaseModel):
     jobs: list[BulkImportJobItem] = Field(default_factory=list)
 
 
-def _parse_tags(raw: str | None) -> list[str]:
-    if not raw:
-        return []
-    tags = [t.strip() for t in raw.split(",") if t.strip()]
-    return list(dict.fromkeys(tags))
-
-
 @router.post(
     "/api/imports/bulk",
     status_code=202,
@@ -50,7 +42,6 @@ def _parse_tags(raw: str | None) -> list[str]:
 async def import_bulk(
     files: list[UploadFile] = File(...),
     duplicates: Literal["skip", "keep_both", "replace"] = Form(default="skip"),
-    tags: str | None = Form(default=None),
     ctx: AppContext = Depends(context),
     user: Principal = Depends(principal),
 ) -> JSONResponse:
@@ -59,13 +50,11 @@ async def import_bulk(
     Each valid file is queued as a background job.
     Options:
     - duplicates: "skip", "keep_both", or "replace"
-    - tags: optional default tags (comma-separated). For a .zip without tags, the archive name is used.
     """
     if not files:
         raise api_error(400, "upload.empty", "no files provided")
 
     batch_id = uuid.uuid4().hex
-    explicit_tags = _parse_tags(tags)
     jobs: list[BulkImportJobItem] = []
 
     for file in files:
@@ -86,10 +75,6 @@ async def import_bulk(
             finally:
                 staging_zip.unlink(missing_ok=True)
 
-            # Default tag for zip is the zip name if no explicit tags given
-            zip_stem = Path(filename).stem
-            batch_tags = explicit_tags if explicit_tags else [zip_stem]
-
             for item in extracted:
                 job_id = ctx.jobs.enqueue(
                     user.user_id,
@@ -100,7 +85,6 @@ async def import_bulk(
                         "kind": None,
                         "prefer": _prefer(ctx, user),
                         "on_duplicate": duplicates,
-                        "tags": batch_tags,
                         "batch_id": batch_id,
                     },
                 )
@@ -119,7 +103,6 @@ async def import_bulk(
                     "kind": None,
                     "prefer": _prefer(ctx, user),
                     "on_duplicate": duplicates,
-                    "tags": explicit_tags,
                     "batch_id": batch_id,
                 },
             )

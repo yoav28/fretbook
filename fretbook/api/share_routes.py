@@ -1,8 +1,8 @@
 """Read-only share links. The public routes do not require a session.
 
 A missing, revoked, expired, or disabled link all answer 404 with the same error, so trying tokens
-does not reveal which songs exist. The payload has no real song id, library id, notes, tags, or
-source reference, and it cannot be written back.
+does not reveal which songs exist. The payload has no real song id, library id, notes, or source
+reference, and it cannot be written back.
 """
 
 from __future__ import annotations

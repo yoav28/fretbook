@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./support/fixtures";
-import { addTag, menuItem } from "./support/song-page";
+import { menuItem } from "./support/song-page";
 
 // The service worker is what makes the rest of this work, so it must be on here (it is blocked elsewhere).
 test.use({ serviceWorkers: "allow" });
@@ -107,7 +107,7 @@ test("the manifest makes the app installable", async ({ page }) => {
   );
 });
 
-test("a favourite and a tag set offline are queued and sent when the network returns", async ({
+test("a favourite set offline is queued and sent when the network returns", async ({
   page,
   context,
   seed,
@@ -126,16 +126,12 @@ test("a favourite and a tag set offline are queued and sent when the network ret
   await page.reload();
   await expect(page.getByTestId("offline-indicator")).toBeVisible();
   await page.getByTestId("song-favourite").click();
-  await addTag(page, "gig");
-  await expect(page.getByTestId("song-tag")).toContainText("gig");
   await expect(page.getByTestId("offline-queued")).toBeVisible();
 
   await context.setOffline(false);
   await expect(page.getByTestId("offline-status")).toBeHidden({ timeout: 15_000 });
   const saved = (await (await page.request.get(`/api/songs/${song.id}`)).json()) as {
-    tags: string[];
     favourite: boolean;
   };
-  expect(saved.tags).toEqual(["gig"]);
   expect(saved.favourite).toBe(true);
 });

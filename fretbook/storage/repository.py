@@ -35,7 +35,6 @@ from fretbook.score.model import (
     summary_fields,
 )
 from fretbook.storage.access import can_read, editable_library
-from fretbook.tags import MAX_TAGS_PER_SONG, clean_tags, tag_key
 
 _EMPTY_SUMMARY: dict[str, Any] = {
     "bpm": 0,
@@ -91,13 +90,6 @@ _SUMMARY_COLUMNS = (
     "s.track_count, s.string_count, s.preferred_instrument, s.has_sync, s.duration, s.updated_at, s.favourite, "
     "s.difficulty, s.musical_key, s.detected_key, s.genre, s.album, s.year"
 )
-# The song's tags as a JSON array, sorted, so a page of songs needs no query per song.
-_TAGS_COLUMN = (
-    "(SELECT json_group_array(tag) FROM "
-    "(SELECT tag FROM song_tags WHERE song_id = s.id ORDER BY tag_key, tag)) AS tags_json"
-)
-
-
 # Around each matched word in a lyrics snippet. `_index_lyrics` strips them from the indexed words.
 SNIPPET_START = "\x02"
 SNIPPET_END = "\x03"
@@ -351,7 +343,6 @@ class SongRepository:
         sort: str = "updated",
         order: str | None = None,
         instrument: str = "all",
-        tags: list[str] | None = None,
         favourite: bool = False,
         difficulty_min: int | None = None,
         difficulty_max: int | None = None,
@@ -362,12 +353,12 @@ class SongRepository:
     ) -> dict[str, Any]:
         """One page of the owner's songs plus the total match count and per-filter counts.
 
-        ``q`` is matched as word prefixes against title, artist, chord-sheet lyrics and tags. ``tags`` keeps songs
-        that have every one of them, and ``favourite`` only starred songs. ``difficulty_min`` and
+        ``q`` is matched as word prefixes against title, artist and chord-sheet lyrics. ``favourite`` only starred
+        songs. ``difficulty_min`` and
         ``difficulty_max`` keep tabs whose level, rounded to 1..10, is in range; chord sheets have none and are
         left out. ``key`` keeps songs in that key (the one set, else the detected one) and ``genre`` songs with
         that genre, ignoring case. Summaries come from explicit columns so the score and ChordPro text are never
-        read. The counts ignore the search, tags and favourites.
+        read. The counts ignore the search and favourites.
         """
         sort_sql, default_order = _SORTS[sort]
         direction = "DESC" if (order or default_order) == "desc" else "ASC"
@@ -379,14 +370,6 @@ class SongRepository:
             params.append(match)
         if instrument != "all":
             where.append(_FILTERS[instrument])
-        wanted = [tag_key(tag) for tag in clean_tags(tags or [])]
-        if wanted:
-            marks = ", ".join("?" for _ in wanted)
-            where.append(
-                f"s.id IN (SELECT song_id FROM song_tags WHERE tag_key IN ({marks}) "
-                "GROUP BY song_id HAVING count(*) = ?)"
-            )
-            params.extend([*wanted, len(wanted)])
         if favourite:
             where.append("s.favourite = 1")
         if difficulty_min is not None:
@@ -406,7 +389,7 @@ class SongRepository:
             total = conn.execute(f"SELECT count(*) FROM songs s WHERE {clause}", params).fetchone()[0]
             rows = conn.execute(
                 f"""
-                SELECT {_SUMMARY_COLUMNS}, {_TAGS_COLUMN}, {_COVER_COLUMN},
+                SELECT {_SUMMARY_COLUMNS}, {_COVER_COLUMN},
                        (SELECT m.id FROM media m
                         WHERE m.song_id = s.id AND m.kind = 'audio'
                         ORDER BY m.created_at DESC LIMIT 1) AS audio_id
@@ -447,7 +430,7 @@ class SongRepository:
         with self._session() as conn:
             row = conn.execute(
                 f"""
-                SELECT s.*, {_TAGS_COLUMN}, {_COVER_COLUMN},
+                SELECT s.*, {_COVER_COLUMN},
                        (SELECT m.id FROM media m
                         WHERE m.song_id = s.id AND m.kind = 'audio'
                         ORDER BY m.created_at DESC LIMIT 1) AS audio_id,
@@ -887,7 +870,7 @@ class SongRepository:
     def set_metadata(self, owner_id: str, song_id: str, changes: dict[str, Any]) -> bool:
         """Set the given metadata fields (``key``, ``genre``, ``album``, ``year``, ``notes``); others stay as they are.
 
-        Values must already be valid (see ``metadata_routes``). Like tags, this leaves ``revision`` and
+        Values must already be valid (see ``metadata_routes``). This leaves ``revision`` and
         ``updated_at`` alone, so it never conflicts with the editor. Returns whether the song is the owner's.
         """
         columns = {"key": "musical_key", "genre": "genre", "album": "album", "year": "year", "notes": "notes"}
@@ -922,36 +905,7 @@ class SongRepository:
             "genres": [{"name": row["name"], "count": row["count"]} for row in genres],
         }
 
-    # --- tags and favourites -----------------------------------------------
-    # These leave ``revision`` and ``updated_at`` alone, like ``mark_opened``: an open editor can still save.
-
-    def set_tags(self, owner_id: str, song_id: str, tags: list[str]) -> list[str] | None:
-        """Replace the song's tags. Returns the stored tags, or ``None`` when the song is not the owner's."""
-        wanted = clean_tags(tags)
-        with self._session(immediate=True) as conn:
-            if not _owns(conn, owner_id, song_id):
-                return None
-            conn.execute("DELETE FROM song_tags WHERE song_id = ?", (song_id,))
-            _insert_tags(conn, song_id, wanted)
-            return _stored_tags(conn, song_id)
-
-    def add_tags(self, owner_id: str, song_ids: list[str], tags: list[str]) -> int:
-        """Add tags to each of the owner's songs, skipping what a song has. A song stops at its tag limit.
-
-        Returns how many songs were updated; ids that are not the owner's are ignored.
-        """
-        wanted = clean_tags(tags)
-        updated = 0
-        with self._session(immediate=True) as conn:
-            for song_id in dict.fromkeys(song_ids):
-                if not _owns(conn, owner_id, song_id):
-                    continue
-                have = {tag_key(tag) for tag in _stored_tags(conn, song_id)}
-                room = MAX_TAGS_PER_SONG - len(have)
-                fresh = [tag for tag in wanted if tag_key(tag) not in have][: max(room, 0)]
-                _insert_tags(conn, song_id, fresh)
-                updated += 1
-        return updated
+    # --- favourites ---------------------------------------------------------
 
     def set_favourite(self, owner_id: str, song_id: str, favourite: bool) -> bool:
         """Star or unstar a song. Returns whether the caller may edit it."""
@@ -965,61 +919,6 @@ class SongRepository:
             )
             return cursor.rowcount > 0
 
-    def list_tags(self, owner_id: str) -> list[dict[str, Any]]:
-        """Every tag on the owner's songs with its song count, most used first, then A to Z."""
-        with self._session() as conn:
-            rows = conn.execute(
-                """
-                SELECT min(t.tag) AS tag, count(*) AS count
-                FROM song_tags t JOIN songs s ON s.id = t.song_id
-                WHERE s.owner_id = ?
-                GROUP BY t.tag_key
-                ORDER BY count DESC, t.tag_key
-                """,
-                (owner_id,),
-            ).fetchall()
-        return [{"tag": row["tag"], "count": row["count"]} for row in rows]
-
-    def rename_tag(self, owner_id: str, tag: str, new_name: str) -> int | None:
-        """Rename a tag on every one of the owner's songs, or merge it into ``new_name`` when that tag exists.
-
-        ``new_name`` must already be cleaned. A song that has both ends up with one. Returns how many songs
-        had ``tag``, or ``None`` when none did.
-        """
-        old_key, new_key = tag_key(tag), tag_key(new_name)
-        with self._session(immediate=True) as conn:
-            owned = "SELECT id FROM songs WHERE owner_id = ?"
-            count = conn.execute(
-                f"SELECT count(*) FROM song_tags WHERE tag_key = ? AND song_id IN ({owned})", (old_key, owner_id)
-            ).fetchone()[0]
-            if not count:
-                return None
-            if old_key != new_key:
-                conn.execute(
-                    f"DELETE FROM song_tags WHERE tag_key = ? AND song_id IN ({owned}) "
-                    "AND song_id IN (SELECT song_id FROM song_tags WHERE tag_key = ?)",
-                    (old_key, owner_id, new_key),
-                )
-                conn.execute(
-                    f"UPDATE song_tags SET tag = ?, tag_key = ? WHERE tag_key = ? AND song_id IN ({owned})",
-                    (new_name, new_key, old_key, owner_id),
-                )
-            # Songs that already had the target keep their spelling otherwise, so the tag reads one way.
-            conn.execute(
-                f"UPDATE song_tags SET tag = ? WHERE tag_key = ? AND song_id IN ({owned})",
-                (new_name, new_key, owner_id),
-            )
-            return count
-
-    def delete_tag(self, owner_id: str, tag: str) -> int:
-        """Remove a tag from every one of the owner's songs. Returns how many songs had it."""
-        with self._session(immediate=True) as conn:
-            cursor = conn.execute(
-                "DELETE FROM song_tags WHERE tag_key = ? AND song_id IN (SELECT id FROM songs WHERE owner_id = ?)",
-                (tag_key(tag), owner_id),
-            )
-            return cursor.rowcount
-
     def delete_song(self, owner_id: str, song_id: str) -> bool:
         with self._session() as conn:
             library_id = editable_library(conn, owner_id, song_id)
@@ -1027,11 +926,6 @@ class SongRepository:
                 return False
             cursor = conn.execute("DELETE FROM songs WHERE owner_id = ? AND id = ?", (library_id, song_id))
             return cursor.rowcount > 0
-
-
-def _owns(conn: sqlite3.Connection, owner_id: str, song_id: str) -> bool:
-    """Whether ``owner_id`` may change this song (their library, or edit membership of its library)."""
-    return editable_library(conn, owner_id, song_id) is not None
 
 
 def _index_lyrics(conn: sqlite3.Connection, song_id: str, chordpro: str | None) -> None:
@@ -1049,7 +943,7 @@ def _index_lyrics(conn: sqlite3.Connection, song_id: str, chordpro: str | None) 
 def _lyric_snippets(conn: sqlite3.Connection, match: str, song_ids: list[str]) -> dict[str, str]:
     """The matching lyric line of each song that the search found only through its lyrics.
 
-    A song whose title, artist or tags match the whole search gets none, and neither does one whose lyrics hold
+    A song whose title or artist match the whole search gets none, and neither does one whose lyrics hold
     none of the words. Matched words sit between ``SNIPPET_START`` and ``SNIPPET_END``; lines are joined by " / ".
     """
     if not song_ids:
@@ -1061,24 +955,13 @@ def _lyric_snippets(conn: sqlite3.Connection, match: str, song_ids: list[str]) -
         WHERE songs_fts MATCH ? AND song_id IN ({marks})
           AND song_id NOT IN (SELECT song_id FROM songs_fts WHERE songs_fts MATCH ?)
         """,
-        (SNIPPET_START, SNIPPET_END, match, *song_ids, f"{{title artist tags}} : ({match})"),
+        (SNIPPET_START, SNIPPET_END, match, *song_ids, f"{{title artist}} : ({match})"),
     ).fetchall()
     return {
         row["song_id"]: " / ".join(line.strip() for line in row["snippet"].splitlines() if line.strip())
         for row in rows
         if SNIPPET_START in row["snippet"]
     }
-
-
-def _insert_tags(conn: sqlite3.Connection, song_id: str, tags: list[str]) -> None:
-    conn.executemany(
-        "INSERT INTO song_tags (song_id, tag, tag_key) VALUES (?, ?, ?)", [(song_id, tag, tag_key(tag)) for tag in tags]
-    )
-
-
-def _stored_tags(conn: sqlite3.Connection, song_id: str) -> list[str]:
-    rows = conn.execute("SELECT tag FROM song_tags WHERE song_id = ? ORDER BY tag_key, tag", (song_id,))
-    return [row["tag"] for row in rows]
 
 
 def _unique_slug(conn: sqlite3.Connection, owner_id: str, base: str) -> str:
@@ -1119,7 +1002,6 @@ def _summary(row: sqlite3.Row) -> dict[str, Any]:
         "updated_at": row["updated_at"],
         "favourite": bool(row["favourite"]),
         "difficulty": row["difficulty"],
-        "tags": json.loads(row["tags_json"] or "[]"),
         "key": row["musical_key"] or row["detected_key"],
         "key_detected": not row["musical_key"] and row["detected_key"] is not None,
         "genre": row["genre"],

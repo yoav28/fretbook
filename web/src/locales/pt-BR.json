@@ -137,6 +137,10 @@
   },
   "library": {
     "heading": "Biblioteca",
+    "favourites": "Favoritos",
+    "addFavourite": "Adicionar aos favoritos",
+    "removeFavourite": "Remover dos favoritos",
+    "clearFilters": "Limpar filtros",
     "empty": "Nenhuma música ainda. Importe um link do Songsterr ou um arquivo, comece uma tablatura em branco ou cole uma cifra.",
     "open": "Abrir",
     "edit": "Editar",
@@ -187,7 +191,7 @@
       "one": "{count} música",
       "other": "{count} músicas"
     },
-    "search": "Buscar títulos, artistas, letras e tags",
+    "search": "Buscar títulos, artistas e letras",
     "sort": "Ordenar",
     "sortRecent": "Atualizadas recentemente",
     "sortTitle": "Título",
@@ -480,10 +484,6 @@
       "tooLarge": "Esse pedido é grande demais.",
       "crossOrigin": "Pedidos de outros sites não são permitidos.",
       "invalid": "Alguns campos não são válidos."
-    },
-    "tag": {
-      "notFound": "Essa tag não está em nenhuma das suas músicas.",
-      "nameEmpty": "O novo nome da tag não pode ficar vazio."
     },
     "song": {
       "notFound": "Essa música não está na sua biblioteca.",
@@ -986,54 +986,6 @@
     "allTuned": "Todas as cordas afinadas",
     "startOver": "Recomeçar"
   },
-  "tags": {
-    "heading": "Etiquetas",
-    "filters": "Filtrar por etiqueta",
-    "favourites": "Favoritas",
-    "favourite": "Adicionar às favoritas",
-    "unfavourite": "Remover das favoritas",
-    "add": "Adicionar etiqueta",
-    "addPlaceholder": "Adicionar uma etiqueta…",
-    "remove": "Remover etiqueta {tag}",
-    "select": "Selecionar",
-    "selected": {
-      "one": "{count} selecionada",
-      "other": "{count} selecionadas"
-    },
-    "selectAll": "Selecionar todas as exibidas",
-    "selectSong": "Selecionar música",
-    "bulkAdd": "Adicionar etiqueta às selecionadas",
-    "bulkDone": {
-      "one": "Etiqueta “{tag}” adicionada a {count} música.",
-      "other": "Etiqueta “{tag}” adicionada a {count} músicas."
-    },
-    "clearFilters": "Limpar filtros de etiqueta",
-    "empty": "Nenhuma etiqueta corresponde aos filtros."
-  },
-  "manageTags": {
-    "open": "Gerenciar tags",
-    "title": "Gerenciar tags",
-    "hint": "As mudanças valem para todas as músicas da sua biblioteca.",
-    "empty": "Ainda não há tags.",
-    "list": "Tags",
-    "songs": {
-      "one": "{count} música",
-      "other": "{count} músicas"
-    },
-    "newName": "Novo nome para {tag}",
-    "rename": "Renomear",
-    "renameOrMerge": "Renomear ou mesclar {tag}",
-    "save": "Salvar",
-    "cancel": "Cancelar",
-    "mergeHint": "Já existe uma tag com esse nome: as duas serão mescladas.",
-    "delete": "Excluir",
-    "deleteTag": "Excluir {tag}",
-    "confirmDelete": "Remover “{tag}” de {count} músicas?",
-    "confirm": "Remover tag",
-    "renamed": "“{tag}” renomeada para “{name}” em {count} músicas.",
-    "deleted": "“{tag}” removida de {count} músicas.",
-    "close": "Fechar"
-  },
   "wait": {
     "title": "Modo espera",
     "start": "Esperar por mim",
@@ -1074,8 +1026,6 @@
     "skip": "Ignorar",
     "keepBoth": "Manter ambos",
     "replace": "Substituir",
-    "tags": "Tags para o lote",
-    "tagsPlaceholder": "ex: rock, ao vivo",
     "parsing": "Processando Guitar Pro no worker…",
     "saving": "Salvando…"
   },
@@ -1783,7 +1733,6 @@
     },
     "cycles": "Repetições",
     "save": "Salvar na biblioteca",
-    "tag": "exercício",
     "scales": {
       "major": "maior",
       "dorian": "dórico",
@@ -2435,7 +2384,6 @@
     "actions": "Ações",
     "filters": "Filtros",
     "level": "Nível",
-    "tags": "Tags",
     "active": "Filtros ativos",
     "remove": "Remover filtro: {filter}",
     "clear": "Limpar",
@@ -2501,8 +2449,6 @@
     "courseTime": "Tempo total {time}"
   },
   "songPage": {
-    "addTag": "Tag",
-    "cancelTag": "Cancelar",
     "transpose": "Transpor",
     "keepOnDevice": "Manter neste dispositivo",
     "removeFromDevice": "Remover deste dispositivo",

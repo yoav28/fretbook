@@ -77,7 +77,7 @@ describe("bulkImport", () => {
       expect(extracted).toEqual([f1]);
     });
 
-    it("extracts directory entries with folder tags", async () => {
+    it("extracts files from a directory", async () => {
       const f1 = new File(["content"], "sub.xml");
       const fakeEntry = {
         isFile: false,
@@ -115,7 +115,6 @@ describe("bulkImport", () => {
       const extracted = await extractDroppedFiles(dt);
       expect(extracted).toHaveLength(1);
       expect(extracted[0].name).toBe("sub.xml");
-      expect((extracted[0] as unknown as { folderTag?: string }).folderTag).toBe("RockFolder");
     });
   });
 
@@ -140,10 +139,9 @@ describe("bulkImport", () => {
       await processBulkImport({
         files: [xmlFile, gpFile],
         duplicates: "skip",
-        tags: "my-tag",
       });
 
-      expect(mockImportBulk).toHaveBeenCalledWith([xmlFile], "skip", "my-tag");
+      expect(mockImportBulk).toHaveBeenCalledWith([xmlFile], "skip");
       // Allow async worker parsing to settle
       await vi.waitFor(() => {
         expect(mockImportDocument).toHaveBeenCalled();
@@ -179,23 +177,5 @@ describe("bulkImport", () => {
       });
     });
 
-    it("inherits folderTag for batch tags when tags option is not provided", async () => {
-      const gpFile = new File(["gp data"], "tagged.gp4");
-      Object.defineProperty(gpFile, "folderTag", { value: "JazzFolder", writable: true });
-
-      mockImportDocument.mockResolvedValue({ id: "song-jazz", slug: "song-jazz" });
-
-      await processBulkImport({
-        files: [gpFile],
-      });
-
-      await vi.waitFor(() => {
-        expect(mockImportDocument).toHaveBeenCalledWith(
-          expect.objectContaining({
-            tags: ["JazzFolder"],
-          }),
-        );
-      });
-    });
   });
 });

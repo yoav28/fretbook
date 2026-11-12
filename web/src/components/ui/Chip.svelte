@@ -1,7 +1,6 @@
 <script lang="ts">
   import Icon from "../Icon.svelte";
 
-  // filter: toggles. tag: opens or toggles a tag filter. meta: not interactive.
   let {
     variant,
     label,
@@ -14,7 +13,7 @@
     disabled = false,
     onclick,
   }: {
-    variant: "filter" | "tag" | "meta";
+    variant: "filter" | "meta";
     label: string;
     pressed?: boolean;
     count?: number | string;
@@ -42,7 +41,6 @@
     {title}
     {onclick}
   >
-    {#if variant === "tag"}<Icon name="tag" size={13} />{/if}
     {#if icon}<Icon name={icon} size={14} />{/if}
     {label}
     {#if count !== undefined}<span class="count">{count}</span>{/if}
@@ -51,7 +49,6 @@
 
 <style>
   .filter,
-  .tag,
   .meta {
     display: inline-flex;
     align-items: center;
@@ -61,8 +58,7 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .filter,
-  .tag {
+  .filter {
     min-height: 36px;
     padding: 0 var(--sp-3);
     border: 1px solid var(--line);
@@ -80,14 +76,12 @@
   /* Hover is for pointers that can hover (touch keeps it stuck after a tap),
      and never applies to a pressed chip, whose text must stay --bg on --text. */
   @media (hover: hover) {
-    .filter:hover:not(:disabled):not([aria-pressed="true"]),
-    .tag:hover:not(:disabled):not([aria-pressed="true"]) {
+    .filter:hover:not(:disabled):not([aria-pressed="true"]) {
       color: var(--text);
     }
   }
 
-  .filter[aria-pressed="true"],
-  .tag[aria-pressed="true"] {
+  .filter[aria-pressed="true"] {
     border-color: var(--text);
     background: var(--text);
     color: var(--bg);
@@ -98,8 +92,7 @@
     font-size: var(--fs-xs);
   }
 
-  .filter[aria-pressed="true"] .count,
-  .tag[aria-pressed="true"] .count {
+  .filter[aria-pressed="true"] .count {
     color: var(--bg);
     opacity: 0.75;
   }
@@ -121,8 +114,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .filter,
-    .tag {
+    .filter {
       transition: none;
     }
   }

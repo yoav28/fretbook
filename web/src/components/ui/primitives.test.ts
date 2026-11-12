@@ -63,11 +63,6 @@ describe("Chip", () => {
     expect(onclick).toHaveBeenCalled();
   });
 
-  it("draws a tag chip with the tag icon", () => {
-    render(Chip, { variant: "tag", label: "jazz", testid: "tag" });
-    expect(screen.getByTestId("tag").querySelector("svg")).toBeTruthy();
-  });
-
   it("renders a meta chip that is not a button", () => {
     render(Chip, { variant: "meta", label: "120 BPM", testid: "bpm" });
     const chip = screen.getByTestId("bpm");

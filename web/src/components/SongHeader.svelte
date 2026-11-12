@@ -3,12 +3,11 @@
 
   import Cover from "./Cover.svelte";
   import Icon from "./Icon.svelte";
-  import SongTags from "./SongTags.svelte";
   import Chip from "./ui/Chip.svelte";
   import IconButton from "./ui/IconButton.svelte";
   import OverflowMenu, { type OverflowItem } from "./ui/OverflowMenu.svelte";
   import PageHeader from "./ui/PageHeader.svelte";
-  import { deleteSong, setSongTags } from "../lib/api";
+  import { deleteSong } from "../lib/api";
   import { coverSrc } from "../lib/cover";
   import { t } from "../lib/i18n.svelte";
   import { keyLabel } from "../lib/keys";
@@ -51,7 +50,6 @@
   } = $props();
 
   const locked = $derived(ui.demoMode || readOnly);
-  let tags = $state<string[]>([]);
   let favourite = $state(false);
   let busy = $state(false);
   let error = $state("");
@@ -67,7 +65,6 @@
   const canEdit = $derived(!locked);
 
   $effect(() => {
-    tags = [...(song.tags ?? [])];
     favourite = Boolean(song.favourite);
   });
 
@@ -79,19 +76,6 @@
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   });
-
-  async function saveTags(next: string[]) {
-    busy = true;
-    error = "";
-    try {
-      tags = await setSongTags(song.id, next);
-      await refreshSongs().catch(() => undefined);
-    } catch (err) {
-      error = err instanceof Error ? err.message : t("error.generic");
-    } finally {
-      busy = false;
-    }
-  }
 
   async function toggleStar() {
     try {
@@ -200,7 +184,7 @@
         <IconButton
           class={favourite ? "song-star on" : "song-star"}
           icon={favourite ? "starFilled" : "star"}
-          label={favourite ? t("tags.unfavourite") : t("tags.favourite")}
+          label={favourite ? t("library.removeFavourite") : t("library.addFavourite")}
           testid="song-favourite"
           pressed={favourite}
           onclick={() => void toggleStar()}
@@ -241,13 +225,6 @@
         {/each}
       </div>
     {/if}
-    <SongTags
-      {tags}
-      {locked}
-      {busy}
-      onadd={(tag) => saveTags([...tags, tag])}
-      onremove={(tag) => saveTags(tags.filter((own) => own !== tag))}
-    />
     {#if error}<p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>{/if}
     {#if afterFacts}{@render afterFacts()}{/if}
   {/snippet}

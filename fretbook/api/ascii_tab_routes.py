@@ -23,7 +23,6 @@ from fretbook.context import AppContext
 from fretbook.importers import ascii_tab
 from fretbook.importers.base import ImportError, Notice
 from fretbook.score.model import ScoreDocument
-from fretbook.tags import suggest_tags
 
 router = APIRouter()
 
@@ -157,5 +156,4 @@ def import_ascii_tab(
             source_kind="ascii-tab",
             source_ref={"rhythm_estimated": True, "grid": body.grid},
         )
-    ctx.songs.add_tags(user.user_id, [saved["id"]], suggest_tags(saved))
     return JSONResponse(ctx.songs.get_song(user.user_id, saved["id"]), status_code=201)
