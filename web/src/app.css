@@ -1792,23 +1792,8 @@ div.player-page .song-header .cover {
   background: color-mix(in srgb, var(--accent) 7%, transparent) !important;
 }
 
-.at-beat-spotlight {
-  position: absolute;
-  z-index: 1;
-  border-radius: var(--r-md);
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--accent) 20%, transparent) 24%,
-    color-mix(in srgb, var(--accent) 20%, transparent) 76%,
-    transparent
-  );
-  pointer-events: none;
-}
-
 .at-cursor-beat {
   background: var(--accent) !important;
-  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 55%, transparent);
   transition: none !important;
 }
 
@@ -1817,22 +1802,8 @@ div.player-page .song-header .cover {
   animation: wait-pulse 1.1s ease-in-out infinite;
 }
 
-.score[data-wait="waiting"] .at-beat-spotlight {
-  animation: wait-pulse 1.1s ease-in-out infinite;
-}
-
 .score[data-wait="hit"] .at-cursor-beat {
   background: var(--success) !important;
-}
-
-.score[data-wait="hit"] .at-beat-spotlight {
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--success) 20%, transparent) 24%,
-    color-mix(in srgb, var(--success) 20%, transparent) 76%,
-    transparent
-  ) !important;
 }
 
 .score[data-wait="hit"] .at-highlight * {
@@ -1851,9 +1822,6 @@ div.player-page .song-header .cover {
     animation: none;
   }
 
-  .score[data-wait="waiting"] .at-beat-spotlight {
-    animation: none;
-  }
 }
 
 .wait-status {
