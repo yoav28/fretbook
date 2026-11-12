@@ -39,6 +39,7 @@ A claim goes stale when it has no open pull request and no comment or commit for
 
 ## 3. Branch and open a draft PR early
 
+- This workflow applies to work explicitly assigned to a GitHub issue that needs a pull request. For routine tasks, small changes, and follow-ups without an issue or PR, stay on the current branch and checkout.
 - Branch from the latest `main`: `git fetch origin main && git switch -c <agent>/<N>-<short-slug> origin/main`, for example `cursor/45-ascii-tab` or `claude/27-playwright-e2e`.
 - Push early and open a **draft** pull request whose body contains `Closes #<N>`. The draft is the strongest signal to other agents that the issue is taken.
 - One issue per pull request. Never push to another agent's branch.
