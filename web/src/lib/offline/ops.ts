@@ -62,7 +62,12 @@ function isQueuedOp(value: unknown): value is QueuedOp {
 export function readOps(storage: Storage | null = browserStorage()): QueuedOp[] {
   try {
     const parsed: unknown = JSON.parse(storage?.getItem(KEY) ?? "[]");
-    return Array.isArray(parsed) ? parsed.filter(isQueuedOp) : [];
+    const ops = Array.isArray(parsed) ? parsed.filter(isQueuedOp) : [];
+    if (Array.isArray(parsed) && ops.length !== parsed.length && storage) {
+      if (ops.length) storage.setItem(KEY, JSON.stringify(ops));
+      else storage.removeItem(KEY);
+    }
+    return ops;
   } catch {
     return [];
   }

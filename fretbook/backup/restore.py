@@ -479,6 +479,8 @@ def _restore_song(
         text = chordpro.normalize(raw.decode("utf-8"))
     # Keep the original id when nothing else uses it; ids are global, so another user's song may.
     keep_id = entry.id if not songs.id_taken(entry.id) else None
+    source_ref = dict(entry.source_ref)
+    source_ref.pop("tags", None)
     song = songs.create_song(
         owner_id,
         title=entry.title.strip() or "Untitled",

@@ -48,10 +48,10 @@ export function renderTuningLabels(host: HTMLElement, tuning: number[], notation
   const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
   group.setAttribute("data-tuning-labels", "true");
   group.setAttribute("aria-hidden", "true");
-  const fontSize = Math.min(20, (staff[1]?.y ?? staff[0].y + 20) - staff[0].y);
+    const fontSize = Math.min(24, ((staff[1]?.y ?? staff[0].y + 20) - staff[0].y) * 0.9);
   for (let index = 0; index < staff.length; index += 1) {
     const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    label.setAttribute("x", String(staff[index].x - 8));
+      label.setAttribute("x", String(staff[index].x - 16));
     label.setAttribute("y", String(staff[index].y));
     label.setAttribute("fill", "#8e8e93");
     label.setAttribute("font-family", "Inter, sans-serif");

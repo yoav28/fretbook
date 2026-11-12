@@ -19,7 +19,7 @@ export interface CacheLike {
     options?: { ignoreSearch?: boolean },
   ): Promise<Response | undefined>;
   put(request: Request | string, response: Response): Promise<void>;
-  delete(request: Request | string): Promise<boolean>;
+  delete(request: Request | string, options?: { ignoreSearch?: boolean }): Promise<boolean>;
 }
 
 export interface CacheStorageLike {
@@ -190,6 +190,9 @@ export function createWorker(env: WorkerEnv) {
   async function activate(): Promise<void> {
     for (const name of await env.caches.keys())
       if (name.startsWith(SHELL_CACHE_PREFIX) && name !== shellName) await env.caches.delete(name);
+    await (await env.caches.open(DATA_CACHE)).delete(new URL("api/tags", env.scope).href, {
+      ignoreSearch: true,
+    });
   }
 
   async function assetResponse(request: Request): Promise<Response> {
