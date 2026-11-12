@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/svelte";
+import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { describe, expect, it, vi } from "vitest";
 
 import { defaultPractice } from "../lib/practice";
@@ -150,5 +150,31 @@ describe("PlayerSheet", () => {
     expect(screen.queryByRole("spinbutton")).toBeNull();
     await fireEvent.click(screen.getByTestId("player-sheet-tab-audio"));
     expect(screen.queryByTestId("player-upload")).toBeNull();
+  });
+  it("keeps custom dock speeds selectable when opening the practice tab", async () => {
+    localStorage.clear();
+    const onrate = vi.fn();
+    const view = render(PlayerSheet, { props: props({ rate: 0.83, onrate }) });
+    expect(screen.getByTestId("player-rate")).toHaveValue("0.83");
+    expect(screen.getByRole("option", { name: "0.83×" })).toBeInTheDocument();
+    await fireEvent.change(screen.getByTestId("player-rate"), { target: { value: "0.75" } });
+    expect(onrate).toHaveBeenCalledWith(0.75);
+    await view.rerender(props({ rate: 0.91, onrate }));
+    expect(screen.getByTestId("player-rate")).toHaveValue("0.91");
+  });
+
+  it("focuses the restored tab and lets contextual requests override it", async () => {
+    localStorage.clear();
+    saveSheetTab("audio", "ada");
+    const view = render(PlayerSheet, { props: props({ userId: "ada" }) });
+    await waitFor(() => expect(screen.getByTestId("player-sheet-tab-audio")).toHaveFocus());
+    await view.rerender(props({ userId: "ada", requestedTab: "practice" }));
+    await waitFor(() => expect(screen.getByTestId("player-sheet-tab-practice")).toHaveFocus());
+    expect(screen.getByTestId("loop-panel")).toBeInTheDocument();
+    await fireEvent.click(screen.getByTestId("player-sheet-tab-view"));
+    expect(screen.getByTestId("player-sheet-tab-view")).toHaveAttribute("aria-selected", "true");
+    await view.rerender(props({ userId: "ada", requestedTab: "practice", requestId: 1 }));
+    await waitFor(() => expect(screen.getByTestId("player-sheet-tab-practice")).toHaveFocus());
+    expect(screen.getByTestId("loop-panel")).toBeInTheDocument();
   });
 });

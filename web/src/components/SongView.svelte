@@ -8,6 +8,7 @@
   import type { SongDetail, TabSong } from "../lib/types";
   import { songVersion } from "../lib/songUpdates.svelte";
   import { handsFree, setStage } from "../lib/handsFree.svelte";
+  import { followLink, hrefFor } from "../lib/router.svelte";
   import { onDestroy, untrack, type Snippet } from "svelte";
 
   let {
@@ -19,6 +20,7 @@
 
   let song = $state<SongDetail | null>(null);
   let error = $state("");
+  let retryCount = $state(0);
   $effect(() => {
     void id;
     untrack(() => {
@@ -34,6 +36,7 @@
 
   $effect(() => {
     const songId = id;
+    void retryCount;
     void songVersion(songId);
     let cancel = false;
     song = null;
@@ -54,7 +57,19 @@
   });
 </script>
 
-{#if error}<p class="alert" role="alert">{error}</p>{/if}
+{#if error}
+  <div class="song-load-error">
+    <p class="alert" role="alert">{error}</p>
+    <div class="recovery-actions">
+      <button type="button" class="button primary" onclick={() => retryCount++}>
+        {t("auditRecovery.retry")}
+      </button>
+      <a class="button" href={hrefFor("/")} onclick={(event) => followLink(event, "/")}>
+        {t("auditRecovery.library")}
+      </a>
+    </div>
+  </div>
+{/if}
 {#if !song}
   {#if !error}<div class="loading" role="status">
       <span class="spinner"></span>{t("app.loading")}
@@ -71,3 +86,16 @@
     {/if}
   </Page>
 {/if}
+
+<style>
+  .song-load-error {
+    display: grid;
+    gap: var(--sp-3);
+  }
+
+  .recovery-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+  }
+</style>

@@ -12,7 +12,8 @@
 
   const path = $derived(routePath());
   const edit = $derived(path.match(/^\/songs\/([^/]+)\/edit\/?$/));
-  const play = $derived(path.match(/^\/songs\/([^/]+)\/?$/));
+  const play = $derived(path.match(/^\/songs\/([^/]+)(?:\/([^/]+))?\/?$/));
+  const playId = $derived(play?.[2] ?? play?.[1]);
   const isLibrary = $derived(path === "/");
 
   $effect(() => {
@@ -82,7 +83,7 @@
           <p class="muted" role="status">{t("app.loading")}</p>
         {:then module}
           {@const SongView = module.default}
-          <SongView id={play[1]} />
+          <SongView id={playId!} />
         {/await}
       {:else}
         <div class="empty-state">

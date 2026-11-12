@@ -59,33 +59,40 @@
   <h3>{t("player.loop")}</h3>
   <div class="button-row">
     <button data-testid="player-loop-a" onclick={() => onsetloop("a")}>
-      <Icon name="repeat" size={16} />{t("player.loopA")}
+      <Icon name="repeat" size={16} />{t("auditPanel.setStart")}
     </button>
     <button data-testid="player-loop-b" onclick={() => onsetloop("b")}>
-      {t("player.loopB")}
+      {t("auditPanel.setEnd")}
     </button>
     <button data-testid="player-clear-loop" onclick={onclearloop} disabled={loopA == null}>
       {t("player.clearLoop")}
     </button>
     {#if loopA != null && loopB != null}
       <span class="pill pill-accent" data-testid="current-loop-range">
-        {t("player.loopRange", { a: loopA + 1, b: loopB + 1 })}
+        {t("auditPanel.range", { a: loopA + 1, b: loopB + 1 })}
       </span>
     {/if}
   </div>
 
+  <p class="muted small" role="status" data-testid="loop-instructions">
+    {loopA != null && loopB != null ? t("auditPanel.adjustRange") : t("auditPanel.chooseRange")}
+  </p>
+
   {#if loopA != null && loopB != null}
     <div class="loop-save-row" data-testid="loop-save-row">
-      <input
-        type="text"
-        class="input loop-name-input"
-        data-testid="save-loop-name"
-        placeholder={t("speedTrainer.loopNamePlaceholder")}
-        bind:value={newLoopName}
-        onkeydown={(event) => {
-          if (event.key === "Enter") saveCurrentLoop();
-        }}
-      />
+      <label class="field loop-name-field">
+        <span>{t("auditPanel.loopName")}</span>
+        <input
+          type="text"
+          class="input loop-name-input"
+          data-testid="save-loop-name"
+          placeholder={t("speedTrainer.loopNamePlaceholder")}
+          bind:value={newLoopName}
+          onkeydown={(event) => {
+            if (event.key === "Enter") saveCurrentLoop();
+          }}
+        />
+      </label>
       <button class="button" data-testid="save-loop-button" onclick={saveCurrentLoop}>
         <Icon name="plus" size={16} />{t("speedTrainer.saveLoop")}
       </button>
@@ -121,8 +128,8 @@
               class="icon-button ghost small danger-text"
               data-testid={`delete-loop-${loop.id}`}
               onclick={() => deleteLoop(loop.id)}
-              aria-label={t("speedTrainer.deleteLoop")}
-              title={t("speedTrainer.deleteLoop")}
+              aria-label={t("auditPanel.deleteLoop", { name: loop.name })}
+              title={t("auditPanel.deleteLoop", { name: loop.name })}
             >
               <Icon name="close" size={14} />
             </button>
@@ -134,3 +141,21 @@
 </div>
 
 {#if between}{@render between()}{/if}
+
+<style>
+  .loop-save-row {
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .loop-name-field {
+    flex: 1 1 9rem;
+    min-width: 0;
+    margin: 0;
+  }
+
+  .loop-name-input {
+    width: 100%;
+    max-width: none;
+  }
+</style>

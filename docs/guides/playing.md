@@ -3,8 +3,14 @@
 
 ## Playing a tab
 
-Open a song. **Space** plays, the arrow keys move a bar, and `?` lists every shortcut. Without a recording, alphaTab's
+Open a song. **Space** plays, the arrow keys move a bar, and `?` lists every shortcut. Shortcuts leave text fields, tabs, buttons and sliders to their normal keyboard controls. Without a recording, alphaTab's
 synth plays the tab. Standard notation and tab are drawn by [alphaTab](https://alphatab.net).
+
+Use **Jump to section** in the playback controls to move directly to a verse, solo or outro. The selector includes the starting bar so repeated section names are easy to distinguish. Playback stays available while the settings panel is open on a phone.
+
+Choose **Playback options → Loop**, seek to the first bar and choose **Set start**, then seek to the last bar and choose **Set end**. The panel displays the selected bar range and lets you save it with a name. Loop and speed chips always open this tab. The speed slider and dropdown show the same value, including custom percentages.
+
+Play becomes available once the score and audio engine are ready. If preparation or playback fails, use **Retry playback**. A failed song load offers **Retry** and **Return to library**. The score and controls follow your selected light or dark appearance.
 
 Switch between **Tab**, **Highway** and **Split** on any tab song page; Fretbook remembers it per user.
 
@@ -26,7 +32,9 @@ A recording and a score only line up if you tell Fretbook where each bar starts.
 
 1. Open the Sync & audio panel and start the recording.
 2. Press **T** at the start of each bar, against the audio. Those are the *sync marks*.
-3. Use Loop A/B, speed and the nudge buttons to line up a stretch that drifts.
+3. Use **Set start**, **Set end**, speed and the nudge buttons to line up a stretch that drifts.
+
+Sync edits save automatically. If a save fails, **Not saved** remains visible with **Retry saving sync**; retry sends the latest edits. **Undo sync change** restores the previous anchors and tempo, including after clearing or restoring sync marks.
 
 #### Auto-sync
 

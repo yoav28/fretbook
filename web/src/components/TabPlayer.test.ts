@@ -4,6 +4,7 @@ import { flushSync } from "svelte";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import type { TabSong } from "../lib/types";
+import { setNotation, setPlayerView } from "../lib/ui.svelte";
 import TabPlayer from "./TabPlayer.svelte";
 
 const lifecycle = vi.hoisted(() => ({
@@ -11,14 +12,27 @@ const lifecycle = vi.hoisted(() => ({
   destroyed: vi.fn(),
   loaded: vi.fn(),
   rendered: vi.fn(),
+  delayedReady: false,
+  delayedRender: false,
   instances: [] as {
     playbackSpeed: number;
     tickPosition: number;
     settings: Settings;
     updateSettings: ReturnType<typeof vi.fn>;
     playedBeatChanged: { emit: (beat: unknown) => void };
+    playerReady: { emit: () => void };
+    renderFinished: { emit: () => void };
+    error: { emit: (error: Error) => void };
+    play: ReturnType<typeof vi.fn>;
     uiFacade: { _scrollContainer?: unknown };
   }[],
+}));
+
+const api = vi.hoisted(() => ({ patchSync: vi.fn() }));
+
+vi.mock("../lib/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/api")>()),
+  patchSync: api.patchSync,
 }));
 
 vi.mock("@coderline/alphatab", async (importOriginal) => {
@@ -42,7 +56,19 @@ vi.mock("@coderline/alphatab", async (importOriginal) => {
       tickPosition = 0;
       playerState = original.synth.PlayerState.Paused;
       scoreLoaded = event();
-      playerReady = { on: (handler: () => void) => handler() };
+      renderFinished = event();
+      renderer = { partialRenderFinished: event() };
+      error = event();
+      playerReady = (() => {
+        const ready = event();
+        return {
+          on: (handler: () => void) => {
+            ready.on(handler);
+            if (!lifecycle.delayedReady) handler();
+          },
+          emit: () => ready.emit(),
+        };
+      })();
       playedBeatChanged = event();
       beatMouseDown = event();
       beatMouseMove = event();
@@ -57,12 +83,14 @@ vi.mock("@coderline/alphatab", async (importOriginal) => {
         this.tracks = indexes.map((index) => this.score.tracks[index]);
         lifecycle.loaded(this.score.tracks.length);
         this.scoreLoaded.emit();
+        if (!lifecycle.delayedRender) this.renderFinished.emit();
       });
       renderTracks = vi.fn((tracks: model.Track[]) => {
         this.tracks = tracks;
         lifecycle.rendered(tracks.map((track) => track.index));
       });
       updateSyncPoints = vi.fn();
+      scrollToCursor = vi.fn();
       updateSettings = vi.fn();
       changeTrackVolume = vi.fn();
       changeTrackMute = vi.fn();
@@ -153,6 +181,17 @@ const song = {
 beforeEach(() => {
   vi.clearAllMocks();
   lifecycle.instances.length = 0;
+  lifecycle.delayedReady = false;
+  lifecycle.delayedRender = false;
+  api.patchSync.mockReset().mockResolvedValue({ revision: 2 });
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+  vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+    configurable: true,
+    writable: true,
+    value: vi.fn(),
+  });
   mediaQueries.clear();
   const storage = new Map<string, string>();
   vi.stubGlobal("localStorage", {
@@ -161,13 +200,18 @@ beforeEach(() => {
     removeItem: (key: string) => storage.delete(key),
   });
   vi.stubGlobal("matchMedia", vi.fn(matchMediaMock));
+  setPlayerView("tab");
+  setNotation(false);
   Object.defineProperty(document, "scrollingElement", {
     configurable: true,
     get: () => document.documentElement,
   });
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 it("keeps the loaded player when changing recording volume after a synchronous ready callback", async () => {
   render(TabPlayer, { song, readOnly: true });
@@ -332,4 +376,183 @@ it("keeps speed, loop, and playback when the layout crosses the phone breakpoint
   expect(screen.getByTestId("player-loop-chip")).toHaveTextContent("A6–B6");
   expect(api.settings.player.scrollElement).toBe(screen.getByTestId("player-score"));
   expect(api.updateSettings).toHaveBeenCalled();
+});
+
+function songWithBars(id: string, anchors: Record<string, number> = {}): TabSong {
+  const copy = structuredClone(song);
+  copy.id = id;
+  copy.document.bars = Array.from({ length: 4 }, () => ({ ...bar }));
+  copy.document.tracks[0].bars = Array.from({ length: 4 }, () => ({ voices: [{ beats: [] }] }));
+  copy.document.sync.anchors = { ...anchors };
+  return copy;
+}
+
+it("keeps playback disabled until the engine is ready", async () => {
+  lifecycle.delayedReady = true;
+  render(TabPlayer, { song: songWithBars("delayed-ready"), readOnly: true });
+  await waitFor(() => expect(lifecycle.loaded).toHaveBeenCalledOnce());
+  expect(screen.getByTestId("player-loading")).toHaveTextContent("Preparing playback");
+  expect(screen.getByTestId("player-play")).toBeDisabled();
+
+  flushSync(() => lifecycle.instances[0].playerReady.emit());
+
+  await waitFor(() => expect(screen.getByTestId("player-play")).toBeEnabled());
+  expect(screen.queryByTestId("player-loading")).toBeNull();
+});
+
+it("rebuilds a failed engine and enables playback after retry is ready", async () => {
+  render(TabPlayer, { song: songWithBars("engine-retry"), readOnly: true });
+  await waitFor(() => expect(screen.getByTestId("player-play")).toBeEnabled());
+  const failed = lifecycle.instances[0];
+  flushSync(() => failed.error.emit(new Error("Sound engine unavailable")));
+  expect(screen.getByTestId("player-failure")).toHaveTextContent("Sound engine unavailable");
+  expect(screen.getByTestId("player-play")).toBeDisabled();
+  lifecycle.delayedReady = true;
+
+  await fireEvent.click(screen.getByRole("button", { name: "Retry playback" }));
+
+  await waitFor(() => expect(lifecycle.created).toHaveBeenCalledTimes(2));
+  expect(lifecycle.destroyed).toHaveBeenCalledOnce();
+  expect(screen.queryByTestId("player-failure")).toBeNull();
+  expect(screen.getByTestId("player-play")).toBeDisabled();
+  flushSync(() => lifecycle.instances[1].playerReady.emit());
+  await waitFor(() => expect(screen.getByTestId("player-play")).toBeEnabled());
+  await fireEvent.click(screen.getByTestId("player-play"));
+  expect(lifecycle.instances[1].play).toHaveBeenCalledOnce();
+});
+
+it("reloads the recording when retrying an audio load error", async () => {
+  render(TabPlayer, { song: songWithBars("audio-retry"), readOnly: true });
+  await waitFor(() => expect(screen.getByTestId("player-play")).toBeEnabled());
+  const audio = screen.getByTestId("player-audio");
+  expect(audio).toHaveAttribute("preload", "metadata");
+
+  await fireEvent.error(audio);
+
+  expect(screen.getByTestId("player-failure")).toHaveTextContent(
+    "The recording could not be loaded",
+  );
+  expect(screen.getByTestId("player-play")).toBeDisabled();
+  await fireEvent.click(screen.getByRole("button", { name: "Retry playback" }));
+  expect(HTMLMediaElement.prototype.load).toHaveBeenCalledOnce();
+  await waitFor(() => expect(screen.getByTestId("player-play")).toBeEnabled());
+  expect(screen.queryByTestId("player-failure")).toBeNull();
+});
+
+it("keeps the skip link on the active song and focuses its score", async () => {
+  const previous = `${location.pathname}${location.search}${location.hash}`;
+  history.replaceState({}, "", "/songs/riff/skip-song?view=tab&follow=1");
+  try {
+    render(TabPlayer, { song: songWithBars("skip-song"), readOnly: true });
+    const skip = screen.getByRole("link", { name: "Skip to tablature" });
+    expect(skip).toHaveAttribute("href", "/songs/riff/skip-song?view=tab&follow=1#player-score");
+
+    await fireEvent.click(skip);
+
+    await waitFor(() => expect(screen.getByTestId("player-score")).toHaveFocus());
+    expect(location.pathname).toBe("/songs/riff/skip-song");
+    expect(location.search).toBe("?view=tab&follow=1");
+  } finally {
+    history.replaceState({}, "", previous);
+  }
+});
+
+it("leaves arrow navigation to the settings tabs without seeking a bar", async () => {
+  render(TabPlayer, { song: songWithBars("settings-keys"), readOnly: true });
+  await waitFor(() => expect(screen.getByTestId("player-play")).toBeEnabled());
+  await fireEvent.input(screen.getByRole("slider", { name: "Position" }), {
+    target: { value: "1" },
+  });
+  const position = lifecycle.instances[0].tickPosition;
+  await fireEvent.click(screen.getByTestId("player-panel-toggle"));
+  const loopTab = screen.getByRole("tab", { name: "Loop" });
+  await waitFor(() => expect(loopTab).toHaveFocus());
+
+  await fireEvent.keyDown(loopTab, { key: "ArrowRight" });
+
+  expect(screen.getByRole("tab", { name: "Audio" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByTestId("player-status")).toHaveAttribute("data-measure", "1");
+  expect(lifecycle.instances[0].tickPosition).toBe(position);
+});
+
+it("opens the loop tab again from a contextual chip after other settings were visited", async () => {
+  render(TabPlayer, { song: songWithBars("contextual-loop"), readOnly: true });
+  await waitFor(() => expect(screen.getByTestId("player-play")).toBeEnabled());
+  await fireEvent.click(screen.getByTestId("player-loop-toggle"));
+  await fireEvent.click(screen.getByTestId("player-loop-chip"));
+  expect(screen.getByRole("tab", { name: "Loop" })).toHaveAttribute("aria-selected", "true");
+
+  for (const name of ["View", "Audio"]) {
+    await fireEvent.click(screen.getByRole("tab", { name }));
+    expect(screen.getByRole("tab", { name })).toHaveAttribute("aria-selected", "true");
+    await fireEvent.click(screen.getByTestId("player-loop-chip"));
+    expect(screen.getByRole("tab", { name: "Loop" })).toHaveAttribute("aria-selected", "true");
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Loop" })).toHaveFocus());
+  }
+});
+
+it("retries the exact failed sync changes and saves Undo through the same queue", async () => {
+  const original = { "0": 0, "2": 6 };
+  const synced = songWithBars("sync-retry", original);
+  api.patchSync.mockRejectedValueOnce(new Error("Connection lost"));
+  api.patchSync.mockResolvedValue({ revision: 2 });
+  render(TabPlayer, { song: synced });
+  await waitFor(() => expect(screen.getByTestId("player-play")).toBeEnabled());
+  await fireEvent.click(screen.getByTestId("player-panel-toggle"));
+  await fireEvent.click(screen.getByRole("tab", { name: "Sync" }));
+
+  await fireEvent.click(screen.getByRole("button", { name: /^Clear marks$/ }));
+
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Retry saving sync" })).toBeVisible(),
+  );
+  expect(screen.getByTestId("player-sync-feedback")).toHaveTextContent(
+    "Not saved: Connection lost",
+  );
+  expect(api.patchSync).toHaveBeenNthCalledWith(1, synced.id, { bpm: 120, anchors: {} });
+  await fireEvent.click(screen.getByRole("button", { name: "Retry saving sync" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "Retry saving sync" })).toBeNull(),
+  );
+  expect(api.patchSync).toHaveBeenNthCalledWith(2, synced.id, { bpm: 120, anchors: {} });
+
+  await fireEvent.click(screen.getByRole("button", { name: "Undo sync change" }));
+
+  await waitFor(() => expect(api.patchSync).toHaveBeenCalledTimes(3));
+  expect(api.patchSync).toHaveBeenNthCalledWith(3, synced.id, { bpm: 120, anchors: original });
+  expect(screen.queryByRole("button", { name: "Undo sync change" })).toBeNull();
+});
+
+it("restores the previous BPM along with anchors when undoing a tempo edit", async () => {
+  const anchors = { "0": 0, "2": 6 };
+  const synced = songWithBars("sync-tempo-undo", anchors);
+  render(TabPlayer, { song: synced });
+  await waitFor(() => expect(screen.getByTestId("player-play")).toBeEnabled());
+  await fireEvent.click(screen.getByTestId("player-panel-toggle"));
+  await fireEvent.click(screen.getByRole("tab", { name: "Sync" }));
+
+  await fireEvent.change(screen.getByRole("spinbutton", { name: "BPM" }), {
+    target: { value: "96" },
+  });
+  await waitFor(() =>
+    expect(api.patchSync).toHaveBeenCalledExactlyOnceWith(synced.id, { bpm: 96, anchors }),
+  );
+  await fireEvent.click(screen.getByRole("button", { name: "Undo sync change" }));
+
+  await waitFor(() => expect(api.patchSync).toHaveBeenCalledTimes(2));
+  expect(api.patchSync).toHaveBeenLastCalledWith(synced.id, { bpm: 120, anchors });
+  expect(screen.getByRole("spinbutton", { name: "BPM" })).toHaveValue(120);
+});
+
+it("waits for the rendered score even after the playback engine is ready", async () => {
+  lifecycle.delayedRender = true;
+  render(TabPlayer, { song: songWithBars("delayed-render"), readOnly: true });
+  await waitFor(() => expect(lifecycle.loaded).toHaveBeenCalledOnce());
+  expect(screen.getByTestId("player-loading")).toBeInTheDocument();
+  expect(screen.getByTestId("player-play")).toBeDisabled();
+
+  flushSync(() => lifecycle.instances[0].renderFinished.emit());
+
+  await waitFor(() => expect(screen.getByTestId("player-play")).toBeEnabled());
+  expect(screen.queryByTestId("player-loading")).toBeNull();
 });

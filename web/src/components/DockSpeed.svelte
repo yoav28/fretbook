@@ -15,6 +15,7 @@
     value={rate}
     style={`--range-fill: ${(rate - 0.5) * 100}%`}
     aria-label={t("player.rate")}
+    aria-valuetext={`${Math.round(rate * 100)}%`}
     data-testid="player-speed"
     oninput={(event) => onchange(Number(event.currentTarget.value))}
   />

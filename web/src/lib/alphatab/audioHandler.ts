@@ -5,6 +5,7 @@ export class AudioMedia implements alphaTab.synth.IExternalMediaHandler {
   constructor(
     private readonly audio: HTMLAudioElement,
     private readonly shiftMs: () => number,
+    private readonly onError: (message: string) => void = () => {},
   ) {}
 
   get backingTrackDuration(): number {
@@ -35,7 +36,9 @@ export class AudioMedia implements alphaTab.synth.IExternalMediaHandler {
   }
 
   play(): void {
-    void this.audio.play();
+    void this.audio.play().catch((error: unknown) => {
+      this.onError(error instanceof Error ? error.message : String(error));
+    });
   }
 
   pause(): void {

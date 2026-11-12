@@ -15,6 +15,7 @@
     value={volume}
     style={`--range-fill: ${volume * 100}%`}
     aria-label={t("practice.volume")}
+    aria-valuetext={`${Math.round(volume * 100)}%`}
     data-testid="player-volume"
     oninput={(event) => onchange(Number(event.currentTarget.value))}
   />

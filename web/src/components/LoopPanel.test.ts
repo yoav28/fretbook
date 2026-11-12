@@ -24,6 +24,9 @@ describe("LoopPanel", () => {
       },
     });
 
+    expect(screen.getByRole("button", { name: "Set start" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Set end" })).toBeInTheDocument();
+    expect(screen.getByTestId("loop-instructions")).toHaveTextContent("Seek to the first bar");
     await fireEvent.click(screen.getByTestId("player-loop-a"));
     expect(onsetloop).toHaveBeenCalledWith("a");
 
@@ -52,8 +55,9 @@ describe("LoopPanel", () => {
       },
     });
 
-    expect(screen.getByTestId("current-loop-range")).toHaveTextContent("A5–B9");
-    const nameInput = screen.getByTestId("save-loop-name");
+    expect(screen.getByTestId("current-loop-range")).toHaveTextContent("Bars 5–9");
+    expect(screen.getByTestId("loop-instructions")).toHaveTextContent("adjust this range");
+    const nameInput = screen.getByLabelText("Loop name");
     await fireEvent.input(nameInput, { target: { value: "Solo riff" } });
 
     await fireEvent.click(screen.getByTestId("save-loop-button"));
@@ -91,7 +95,7 @@ describe("LoopPanel", () => {
     await fireEvent.click(screen.getByTestId("jump-loop-loop-1"));
     expect(onjump).toHaveBeenCalledWith(practice.loops[0]);
 
-    await fireEvent.click(screen.getByTestId("delete-loop-loop-1"));
+    await fireEvent.click(screen.getByRole("button", { name: "Delete loop Solo" }));
     expect(practice.loops).toHaveLength(0);
     expect(onchange).toHaveBeenCalled();
   });

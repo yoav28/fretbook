@@ -2494,5 +2494,30 @@
     "saved": "Saved to {path}",
     "backUpNow": "Back up now",
     "running": "Backing up…"
+  },
+  "auditPanel": {
+    "setStart": "Set start",
+    "setEnd": "Set end",
+    "range": "Bars {a}–{b}",
+    "loopName": "Loop name",
+    "deleteLoop": "Delete loop {name}",
+    "chooseRange": "Seek to the first bar and choose Set start. Then seek to the last bar and choose Set end.",
+    "adjustRange": "Seek to another bar and choose Set start or Set end to adjust this range."
+  },
+  "auditRecovery": {
+    "retry": "Retry",
+    "library": "Return to library"
+  },
+  "auditPlayer": {
+    "jumpSection": "Jump to section",
+    "sectionBar": "{name} · Bar {bar}",
+    "position": "Bar {bar} of {total}, {time}",
+    "preparing": "Preparing playback…",
+    "playbackFailed": "Playback could not start.",
+    "audioFailed": "The recording could not be loaded. Check your connection and retry.",
+    "retryPlayback": "Retry playback",
+    "notSaved": "Not saved",
+    "retrySave": "Retry saving sync",
+    "undoSync": "Undo sync change"
   }
 }

@@ -10,11 +10,14 @@
   import Icon from "./Icon.svelte";
   import PlayerSheet from "./PlayerSheet.svelte";
   import SongHeader from "./SongHeader.svelte";
+  import SectionNavigator from "./SectionNavigator.svelte";
+  import { ownsPlayerKey } from "../lib/playerKeyboard";
   import IconButton from "./ui/IconButton.svelte";
   import OverflowMenu from "./ui/OverflowMenu.svelte";
   import SegmentedControl from "./ui/SegmentedControl.svelte";
   import Tooltip from "./ui/Tooltip.svelte";
-  import { sectionMarks } from "../lib/playerSheet";
+  import { sectionMarks, type SheetTab } from "../lib/playerSheet";
+  import { createSyncSave, type SyncPayload } from "../lib/syncSave";
   import FullscreenToggle from "./FullscreenToggle.svelte";
   import { FULLSCREEN_ATTRIBUTE, fullscreenScale, layoutFocused } from "../lib/fullscreen";
   import AutoSyncSheet from "./AutoSyncSheet.svelte";
@@ -23,14 +26,15 @@
   import { ApiError, getSong, patchSync, uploadAudio } from "../lib/api";
   import { AudioMedia } from "../lib/alphatab/audioHandler";
   import { planFollow, SynthFollower } from "../lib/alphatab/synthFollow";
-  import { hideScoreHeader, separateEffectBands } from "../lib/alphatab/display";
+  import { applyScoreAppearance, watchScoreAppearance } from "../lib/alphatab/playerAppearance";
+  import { applyPlayerScoreLayout } from "../lib/alphatab/playerLayout";
+  import { separateEffectBands } from "../lib/alphatab/display";
   import { renderTuningLabels } from "../lib/alphatab/tuningLabels";
   import { preferredTrack, scoreToAlphaTex } from "../lib/alphatex";
   import { recordingGain, synthGain } from "../lib/practice";
   import { barTicks } from "../lib/durations";
   import {
     handsFree,
-    isTyping,
     pageDelta,
     pedalAction,
     setStage,
@@ -76,14 +80,20 @@
   let song = $state(untrack(() => initial));
 
   let error = $state("");
+  let playerFailure = $state("");
+  let engineReady = $state(false);
+  let renderReady = $state(false);
+  let playerAttempt = $state(0);
   let host = $state<HTMLDivElement | null>(null);
   let scroller = $state<HTMLDivElement | null>(null);
   let audioEl = $state<HTMLAudioElement | null>(null);
+  let pendingSeekReveal = false;
   let pausedAudioSeek: { measure: number; position: number; seconds: number } | null = null;
   // For tests: whether the synth beside the recording is off, loading, ready or sounding.
   let synthState = $state<"off" | "loading" | "ready" | "playing">("off");
   let trackId = $state(untrack(() => song.preferred_track_id || preferredTrack(song.document).id));
   let scoreReady = $state(0);
+  const preparing = $derived(!scoreReady || !engineReady || !renderReady);
   let retuneOpen = $state(false);
   let autoSyncOpen = $state(false);
   let shiftMs = 0;
@@ -114,8 +124,24 @@
   let playbackVolume = $state(1);
   let helpOpen = $state(false);
   let saveLabel = $state("");
-  let saveTimer = 0;
-  let pendingSync: (() => Promise<void>) | null = null;
+  let syncFailure = $state("");
+  let undoSync = $state<SyncPayload | null>(null);
+  const syncSongId = untrack(() => initial.id);
+  const syncSaver = createSyncSave({
+    save: async (payload) => {
+      const saved: SongDetail = await patchSync(syncSongId, payload);
+      if (song.id === syncSongId) song.revision = saved.revision;
+    },
+    onState: (state, err) => {
+      syncFailure = state === "failed" ? message(err) : "";
+      saveLabel =
+        state === "failed"
+          ? t("auditPlayer.notSaved")
+          : state === "saving"
+            ? t("editor.saving")
+            : t("editor.saved");
+    },
+  });
 
   $effect(() => {
     if (playing || handsFree.stage) return keepAwake();
@@ -171,29 +197,22 @@
   }
 
   async function flushSync(): Promise<void> {
-    window.clearTimeout(saveTimer);
-    const run = pendingSync;
-    pendingSync = null;
-    if (run) await run();
+    await syncSaver.flush();
   }
 
-  function commitAnchors(next: Record<string, number>, bpm = song.document.bpm) {
+  function commitAnchors(next: Record<string, number>, bpm = song.document.bpm, remember = true) {
     if (readOnly) return;
-    song.document.sync.anchors = next;
+    if (remember) undoSync = { bpm: song.document.bpm, anchors: { ...song.document.sync.anchors } };
+    song.document.sync.anchors = { ...next };
     song.document.bpm = bpm;
-    const songId = song.id;
-    saveLabel = t("editor.saving");
-    pendingSync = async () => {
-      try {
-        const saved: SongDetail = await patchSync(songId, { bpm, anchors: next });
-        if (song.id === songId) song.revision = saved.revision;
-        saveLabel = t("editor.saved");
-      } catch (err) {
-        error = message(err);
-      }
-    };
-    window.clearTimeout(saveTimer);
-    saveTimer = window.setTimeout(() => void flushSync(), 250);
+    syncSaver.schedule({ bpm, anchors: next });
+  }
+
+  function undoSyncChange() {
+    const previous = undoSync;
+    if (!previous) return;
+    undoSync = null;
+    commitAnchors(previous.anchors, previous.bpm, false);
   }
 
   function applySync() {
@@ -265,6 +284,7 @@
   $effect(() => {
     const element = host;
     const source = synthTex;
+    void playerAttempt;
     const index = untrack(() => trackIndex);
     if (!element || !synthWanted || !source) return;
     return untrack(() => mountCompanion(source, index));
@@ -287,6 +307,7 @@
     settings.player.enableUserInteraction = false;
     const instance = new alphaTab.AlphaTabApi(hidden, settings);
     companion.api = instance;
+    instance.error.on((err) => failPlayback(message(err)));
     companion.ready = false;
     synthState = "loading";
     let scoreLoaded = false;
@@ -329,7 +350,7 @@
   });
 
   // The sticky chrome a followed system must stay below: the song header, the setlist play bar.
-  const STICKY_CHROME = ".topbar, .song-header, .play-bar";
+  const STICKY_CHROME = ".player-topnav, .topbar, .song-header, .play-bar";
   function stickyChromeBottom(): number {
     let bottom = 0;
     for (const el of document.querySelectorAll(STICKY_CHROME)) {
@@ -360,8 +381,21 @@
     const speed = untrack(() => rate);
     instance.playbackSpeed = speed;
     if (useAudio && audioEl) audioEl.playbackRate = speed;
-    const bar = untrack(() => currentMeasure);
-    if (useAudio || bar < 0) return;
+    const bar = Math.min(
+      barCount - 1,
+      untrack(() => currentMeasure),
+    );
+    if (bar < 0) return;
+    if (bar !== currentMeasure) currentMeasure = bar;
+    if (useAudio && audioEl) {
+      const seconds = Math.max(0, startsNow()[bar] ?? 0);
+      audioEl.currentTime = seconds;
+      if (audioEl.paused) pausedAudioSeek = { measure: bar, position: 0, seconds };
+      currentSeconds = seconds;
+      clock = formatTime(seconds);
+      return;
+    }
+    if (useAudio) return;
     instance.tickPosition = tickOfBar(bar);
   }
 
@@ -372,6 +406,7 @@
     const source = tex;
     const scrollHost = scroller;
     const useAudio = audioMode;
+    void playerAttempt;
     if (!element || !scrollHost) return;
     return untrack(() => {
       const onPhone = phone;
@@ -389,21 +424,17 @@
     useAudio: boolean,
     onPhone: boolean,
   ) {
+    engineReady = false;
+    renderReady = false;
+    playerFailure = "";
     const settings = new alphaTab.Settings();
     settings.core.fontDirectory = new URL("font/", document.baseURI).href;
     settings.core.logLevel = alphaTab.LogLevel.Warning;
-    settings.core.enableLazyLoading = false;
+    settings.core.enableLazyLoading = true;
     settings.display.staveProfile = staveProfile(untrack(() => ui.notation));
-    settings.display.padding = [65, 35, 35, 35];
+    applyPlayerScoreLayout(settings, alphaTab, onPhone);
     separateEffectBands(settings);
-    const resources = settings.display.resources;
-    resources.staffLineColor = alphaTab.model.Color.fromJson("#55565d")!;
-    resources.barSeparatorColor = alphaTab.model.Color.fromJson("#8e8e93")!;
-    resources.barNumberColor = alphaTab.model.Color.fromJson("#64a5ff")!;
-    resources.mainGlyphColor = alphaTab.model.Color.fromJson("#f5f5f7")!;
-    resources.secondaryGlyphColor = alphaTab.model.Color.fromJson("#b7b7bc")!;
-    resources.scoreInfoColor = alphaTab.model.Color.fromJson("#d1d1d6")!;
-    if (onPhone) hideScoreHeader(settings, alphaTab);
+    applyScoreAppearance(settings, element, alphaTab);
     settings.display.scale = untrack(scoreScale);
     settings.player.playerMode = useAudio
       ? alphaTab.PlayerMode.EnabledExternalMedia
@@ -421,9 +452,19 @@
       untrack(() => follow) && !onPhone ? alphaTab.ScrollMode.Continuous : alphaTab.ScrollMode.Off;
     const instance = new alphaTab.AlphaTabApi(element, settings);
     player.api = instance;
-    instance.renderFinished.on(() =>
-      renderTuningLabels(element, untrack(() => track.tuning_midi), untrack(() => ui.notation)),
-    );
+    const stopAppearance = watchScoreAppearance(instance, element, alphaTab);
+    instance.error.on((err) => failPlayback(message(err)));
+    const labelTuning = () =>
+      renderTuningLabels(
+        element,
+        untrack(() => track.tuning_midi),
+        untrack(() => ui.notation),
+      );
+    instance.renderFinished.on(() => {
+      renderReady = true;
+      labelTuning();
+    });
+    instance.renderer.partialRenderFinished.on(labelTuning);
     // The sticky chrome changes with stage, focus and setlist play-through: keep the offset current.
     const refreshOffset = () => {
       instance.settings.player.scrollOffsetY = -(16 + (onPhone ? stickyChromeBottom() : 0));
@@ -446,11 +487,12 @@
       });
     });
     instance.playerReady.on(() => {
+      engineReady = true;
       instance.playbackSpeed = untrack(() => rate);
       if (!useAudio || !audioEl) return;
       const output = instance.player?.output as
         alphaTab.synth.IExternalMediaSynthOutput | undefined;
-      if (output) output.handler = new AudioMedia(audioEl, () => shiftMs);
+      if (output) output.handler = new AudioMedia(audioEl, () => shiftMs, failPlayback);
       audioEl.playbackRate = untrack(() => rate);
       applyPractice();
     });
@@ -496,6 +538,10 @@
       }
     });
     instance.playerPositionChanged.on((event) => {
+      if (pendingSeekReveal) {
+        pendingSeekReveal = false;
+        revealCursor();
+      }
       if (!useAudio) {
         clock = formatTime(event.currentTime / 1000);
         currentSeconds = event.currentTime / 1000;
@@ -508,6 +554,7 @@
     return () => {
       scoreReady = 0;
       player.api = null;
+      stopAppearance();
       chromeWatch.disconnect();
       chromeMutations.disconnect();
       window.removeEventListener("resize", refreshOffset);
@@ -577,14 +624,16 @@
     }
     const timer = window.setInterval(paintAudioClock, 50);
     const onKey = (event: KeyboardEvent) => {
-      if (event.code === "Space" || event.key === " " || event.key === "Spacebar") {
-        event.preventDefault();
-        event.stopPropagation();
-        perform("toggle");
+      if (event.defaultPrevented || event.isComposing) return;
+      if (helpOpen) {
+        if (shortcutFor(event) === "help") {
+          event.preventDefault();
+          helpOpen = false;
+        }
         return;
       }
+      if (!ownsPlayerKey(event) || autoSyncOpen || retuneOpen) return;
       const target = event.target as HTMLElement | null;
-      if (isTyping(target)) return;
       // Space and T in the Auto-sync preview must not tap a bar behind the sheet.
       if (target?.closest('[data-testid="autosync-sheet"]')) return;
       // A page-turner pedal sends ordinary keys; the ones the user mapped win over the shortcuts.
@@ -612,8 +661,6 @@
       }
       const action = shortcutFor(event);
       if (!action) return;
-      // The help dialog is modal: only its own key works while it is open.
-      if (helpOpen && action !== "help") return;
       event.preventDefault();
       event.stopPropagation();
       perform(action);
@@ -623,7 +670,7 @@
       window.clearInterval(timer);
       document.removeEventListener("keydown", onKey, true);
       // Leaving the page must not lose a tap that is still waiting to be saved.
-      void flushSync();
+      void flushSync().finally(() => syncSaver.dispose());
     };
   });
 
@@ -696,7 +743,7 @@
 
   function toggle() {
     const api = player.api;
-    if (!api) return;
+    if (!api || preparing || playerFailure) return;
     if (audioMode && audioEl) {
       if (audioEl.paused) {
         if (pausedAudioSeek) audioEl.currentTime = pausedAudioSeek.seconds;
@@ -706,6 +753,29 @@
     }
     if (api.playerState === alphaTab.synth.PlayerState.Playing) api.pause();
     else api.play();
+  }
+
+  function failPlayback(detail: string) {
+    playerFailure = detail || t("auditPlayer.playbackFailed");
+    player.api?.pause();
+    companion.api?.pause();
+    audioEl?.pause();
+    playing = false;
+  }
+
+  function retryPlayback() {
+    playerFailure = "";
+    audioEl?.load();
+    playerAttempt += 1;
+  }
+
+  function skipToScore(event: MouseEvent) {
+    event.preventDefault();
+    if (ui.playerView === "highway") setPlayerView("tab");
+    queueMicrotask(() => {
+      scroller?.focus();
+      scroller?.scrollIntoView({ block: "start" });
+    });
   }
 
   function openAutoSync() {
@@ -724,12 +794,16 @@
    * bring the cursor into view itself, once. alphaTab moves the cursor on its next frame.
    */
   function revealCursor() {
-    if (!phone || (playing && follow)) return;
+    if (!phone) {
+      requestAnimationFrame(() => player.api?.scrollToCursor());
+      return;
+    }
+    if (playing && follow) return;
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         const cursor = host?.querySelector<HTMLElement>(".at-cursor-bar");
         if (!cursor) return;
-        const top = document.querySelector(".topbar")?.getBoundingClientRect().height ?? 0;
+        const top = stickyChromeBottom();
         const box = cursor.getBoundingClientRect();
         const dock =
           document.querySelector("[data-testid=player-fretboard]") ??
@@ -754,6 +828,10 @@
     const index = Math.min(barCount - 1, Math.max(0, target));
     tapIndex = index;
     currentPosition = 0;
+    if (player.api) {
+      pendingSeekReveal = true;
+      player.api.tickPosition = tickOfBar(index);
+    }
     if (audioMode && audioEl) {
       const targetTime = Math.max(0, startsNow()[index] ?? 0);
       audioEl.currentTime = targetTime;
@@ -768,6 +846,7 @@
       currentMeasure = index;
       currentSeconds = Math.max(0, highwayStarts(song.document, false)[index] ?? 0);
     }
+    clock = formatTime(currentSeconds);
     revealCursor();
   }
 
@@ -881,7 +960,7 @@
       lastScoreOffset = Math.max(0, -scroller.getBoundingClientRect().top);
       const cursor = host?.querySelector<HTMLElement>(".at-cursor-bar");
       if (cursor) {
-        const top = document.querySelector(".topbar")?.getBoundingClientRect().height ?? 0;
+        const top = stickyChromeBottom();
         const box = cursor.getBoundingClientRect();
         const dock =
           document.querySelector("[data-testid=player-fretboard]") ??
@@ -952,6 +1031,7 @@
     const scale = scoreScale();
     if (!api || api.settings.display.scale === scale) return;
     api.settings.display.scale = scale;
+    api.updateSettings();
     api.render();
   });
 
@@ -1011,7 +1091,9 @@
         ? alphaTab.ScrollMode.Continuous
         : alphaTab.ScrollMode.Off;
     const settings = api.settings.player;
+    const layoutChanged = applyPlayerScoreLayout(api.settings, alphaTab, onPhone);
     if (
+      !layoutChanged &&
       settings.scrollElement === scrollElement &&
       settings.scrollOffsetY === offsetY &&
       settings.scrollMode === mode
@@ -1023,6 +1105,7 @@
     settings.scrollMode = mode;
     api.updateSettings();
     dropCachedScrollContainer(api);
+    if (layoutChanged) api.render();
   });
 
   function setFollow(checked: boolean) {
@@ -1064,16 +1147,18 @@
   }
 
   let panelOpen = $state(false);
+  let requestedTab = $state<SheetTab | undefined>(undefined);
+  let requestId = $state(0);
+
+  function openSheet(tab?: SheetTab) {
+    requestedTab = tab;
+    requestId += 1;
+    panelOpen = true;
+  }
   // A phone's sheet has two heights; the grabber toggles them.
   let sheetTall = $state(false);
   let sheetSlot = $state<HTMLDivElement | null>(null);
   const marks = $derived(sectionMarks(document_.bars, order));
-  const currentSection = $derived.by(() => {
-    for (let index = marks.length - 1; index >= 0; index -= 1) {
-      if (marks[index].index <= currentMeasure) return marks[index].label;
-    }
-    return "";
-  });
   const loopStyle = $derived(
     loopA != null && loopB != null && barCount > 1
       ? `left:${(loopA / barCount) * 100}%;width:${((loopB - loopA + 1) / barCount) * 100}%`
@@ -1131,13 +1216,34 @@
   });
 </script>
 
+{#snippet syncActions()}
+  {#if syncFailure || undoSync}
+    <div class="playback-feedback" data-testid="player-sync-feedback">
+      {#if syncFailure}
+        <span role="alert">{t("auditPlayer.notSaved")}: {syncFailure}</span>
+        <button type="button" onclick={() => void syncSaver.retry()}
+          >{t("auditPlayer.retrySave")}</button
+        >
+      {/if}
+      {#if undoSync}
+        <button type="button" onclick={undoSyncChange}>{t("auditPlayer.undoSync")}</button>
+      {/if}
+    </div>
+  {/if}
+{/snippet}
+
 <div
   class="song-page player-page"
   class:stage={handsFree.stage}
   class:has-fretboard={practice.fretboard.on}
+  style:--transport-height={dockHeight > 0 ? `${dockHeight}px` : undefined}
   style:--dock-live={dockHeight > 0 ? `calc(${dockHeight + 14}px + var(--safe-b))` : undefined}
 >
-  <a class="player-skip" href="#player-score">{t("player.skipToScore")}</a>
+  <a
+    class="player-skip"
+    href={`${location.pathname}${location.search}#player-score`}
+    onclick={skipToScore}>{t("player.skipToScore")}</a
+  >
   <header class="player-topnav">
     <a
       class="player-brand"
@@ -1266,7 +1372,7 @@
           class="view-chip"
           data-testid="player-loop-chip"
           title={t("player.syncPanel")}
-          onclick={() => (panelOpen = true)}
+          onclick={() => openSheet("practice")}
         >
           <Icon name="repeat" size={14} />{t("player.loopRange", { a: loopA + 1, b: loopB + 1 })}
         </button>
@@ -1277,7 +1383,7 @@
           class="view-chip"
           data-testid="player-speed-chip"
           title={t("player.syncPanel")}
-          onclick={() => (panelOpen = true)}
+          onclick={() => openSheet("practice")}
         >
           <Icon name="gauge" size={14} />{formatSpeedPercent(rate)}
         </button>
@@ -1285,11 +1391,29 @@
     </div>
   </div>
   {#if error}<p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>{/if}
+  {#if !panelOpen}{@render syncActions()}{/if}
+  {#if playerFailure}
+    <div class="alert playback-feedback" role="alert" data-testid="player-failure">
+      <span>{t("auditPlayer.playbackFailed")} {playerFailure}</span>
+      <button type="button" onclick={retryPlayback}>{t("auditPlayer.retryPlayback")}</button>
+    </div>
+  {:else if preparing}
+    <div class="playback-feedback" data-testid="player-loading">
+      <span role="status">{t("auditPlayer.preparing")}</span>
+      <button type="button" onclick={retryPlayback}>{t("auditPlayer.retryPlayback")}</button>
+    </div>
+  {/if}
 
   <div class="player-body">
     <div class="player-main">
       {#if song.has_audio}
-        <audio data-testid="player-audio" bind:this={audioEl} src={audioSrc} preload="auto"></audio>
+        <audio
+          data-testid="player-audio"
+          bind:this={audioEl}
+          src={audioSrc}
+          preload="metadata"
+          onerror={() => failPlayback(t("auditPlayer.audioFailed"))}
+        ></audio>
       {/if}
       <div
         class="player-stage"
@@ -1340,6 +1464,9 @@
           onclick={() => (sheetTall = !sheetTall)}
         ></button>
         <PlayerSheet
+          {requestedTab}
+          {requestId}
+          {syncActions}
           userId={ui.me?.user_id ?? ""}
           songId={song.id}
           {practice}
@@ -1405,7 +1532,7 @@
     {playing ? t("player.playing") : t("player.paused")}
   </p>
 
-  <div class="dock" class:sheet-open={panelOpen && !handsFree.stage} bind:offsetHeight={dockHeight}>
+  <div class="dock" bind:offsetHeight={dockHeight}>
     <div class="dock-bar">
       <div class="dock-primary">
         <div class="dock-transport">
@@ -1415,6 +1542,7 @@
                 class="play-button"
                 data-testid="player-play"
                 data-playing={playing}
+                disabled={preparing || Boolean(playerFailure)}
                 onclick={toggle}
                 aria-label={playButtonLabel}
                 aria-describedby={describedBy || undefined}
@@ -1426,18 +1554,22 @@
         </div>
 
         <div class="dock-progress">
-          <div class="dock-status">
-            <span data-testid="player-status" data-measure={currentMeasure}>
-              {#if currentMeasure >= 0 && currentMeasure < barCount}
-                {t("player.status", { measure: currentMeasure + 1, total: barCount, time: clock })}
-              {:else}
-                {t("player.statusIdle", { time: clock })}
-              {/if}
-            </span>
-            {#if currentSection}
-              <span class="dock-section" title={currentSection}>{currentSection}</span>
-            {/if}
-            {#if saveLabel}<span class="muted">{saveLabel}</span>{/if}
+          <div class="dock-meta">
+            <div class="dock-status">
+              <span data-testid="player-status" data-measure={currentMeasure}>
+                {#if currentMeasure >= 0 && currentMeasure < barCount}
+                  {t("player.status", {
+                    measure: currentMeasure + 1,
+                    total: barCount,
+                    time: clock,
+                  })}
+                {:else}
+                  {t("player.statusIdle", { time: clock })}
+                {/if}
+              </span>
+              {#if saveLabel}<span class="muted">{saveLabel}</span>{/if}
+            </div>
+            <SectionNavigator {marks} current={currentMeasure} onseek={goToBar} />
           </div>
           <div class="scrubber">
             {#if loopStyle}<span class="scrubber-loop" style={loopStyle}></span>{/if}
@@ -1458,6 +1590,11 @@
                 ? (Math.max(0, currentMeasure) / (barCount - 1)) * 100
                 : 0}%"
               aria-label={t("player.position")}
+              aria-valuetext={t("auditPlayer.position", {
+                bar: Math.max(0, currentMeasure) + 1,
+                total: barCount,
+                time: formatTime(currentSeconds),
+              })}
               oninput={(event) => goToBar(Number(event.currentTarget.value))}
             />
           </div>
@@ -1495,7 +1632,7 @@
               testid="player-panel-toggle"
               expanded={panelOpen}
               controls={panelOpen ? "player-sheet" : undefined}
-              onclick={() => (panelOpen = !panelOpen)}
+              onclick={() => (panelOpen ? closeSheet() : openSheet())}
             />
           {/if}
           {#if !phone}
@@ -1514,43 +1651,45 @@
             testid="player-more"
             placement="above"
             items={[
-            ...(phone
-              ? [
-                  {
-                    id: "loop",
-                    label: t("player.loop"),
-                    icon: "repeat",
-                    active: loopA != null && loopB != null,
-                    testid: "player-loop-toggle",
-                    onclick: toggleLoop,
-                  },
-                  {
-                    id: "follow",
-                    label: t("player.follow"),
-                    icon: "crosshair",
-                    active: follow,
-                    testid: "player-follow-toggle",
-                    onclick: () => setFollow(!follow),
-                  },
-                  {
-                    id: "fullscreen",
-                    label: fullscreenToggle?.isOn() ? t("fullscreen.exit") : t("fullscreen.enter"),
-                    icon: fullscreenToggle?.isOn() ? "minimize" : "maximize",
-                    testid: "player-fullscreen-menu",
-                    onclick: () => {
-                      trackScroll();
-                      void fullscreenToggle?.toggle();
+              ...(phone
+                ? [
+                    {
+                      id: "loop",
+                      label: t("player.loop"),
+                      icon: "repeat",
+                      active: loopA != null && loopB != null,
+                      testid: "player-loop-toggle",
+                      onclick: toggleLoop,
                     },
-                  },
-                ]
-              : []),
-            {
-              id: "shortcuts",
-              label: t("shortcuts.title"),
-              icon: "keyboard",
-              testid: "player-shortcuts",
-              onclick: () => (helpOpen = true),
-            },
+                    {
+                      id: "follow",
+                      label: t("player.follow"),
+                      icon: "crosshair",
+                      active: follow,
+                      testid: "player-follow-toggle",
+                      onclick: () => setFollow(!follow),
+                    },
+                    {
+                      id: "fullscreen",
+                      label: fullscreenToggle?.isOn()
+                        ? t("fullscreen.exit")
+                        : t("fullscreen.enter"),
+                      icon: fullscreenToggle?.isOn() ? "minimize" : "maximize",
+                      testid: "player-fullscreen-menu",
+                      onclick: () => {
+                        trackScroll();
+                        void fullscreenToggle?.toggle();
+                      },
+                    },
+                  ]
+                : []),
+              {
+                id: "shortcuts",
+                label: t("shortcuts.title"),
+                icon: "keyboard",
+                testid: "player-shortcuts",
+                onclick: () => (helpOpen = true),
+              },
             ]}
           />
         </div>
@@ -1584,6 +1723,25 @@
 </div>
 
 <style>
+  .dock-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    min-width: 0;
+  }
+
+  .playback-feedback {
+    display: flex;
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    padding: var(--sp-3);
+    color: var(--text-2);
+  }
+
   .player-body {
     display: flex;
     align-items: flex-start;
@@ -1636,7 +1794,6 @@
       justify-content: space-between;
     }
 
-    /* A bottom sheet: full width, attached to the edge, with the dock hidden behind it. */
     .dock-tools {
       flex-wrap: nowrap;
     }
@@ -1645,14 +1802,14 @@
       position: fixed;
       top: auto;
       right: 0;
-      bottom: 0;
+      bottom: var(--transport-height, var(--dock-space));
       left: 0;
       z-index: 45;
       display: flex;
       flex-direction: column;
       width: auto;
       height: auto;
-      max-height: min(55dvh, 100dvh - var(--sp-7));
+      max-height: min(55dvh, 100dvh - var(--transport-height, var(--dock-space)) - var(--sp-7));
       padding-bottom: var(--safe-b);
       overflow: hidden;
       border-radius: var(--r-lg) var(--r-lg) 0 0;
@@ -1663,7 +1820,7 @@
     }
 
     .player-sheet.tall {
-      max-height: calc(100dvh - var(--sp-8));
+      max-height: calc(100dvh - var(--transport-height, var(--dock-space)) - var(--sp-8));
     }
 
     .player-sheet > :global(:not(.sheet-grabber)) {

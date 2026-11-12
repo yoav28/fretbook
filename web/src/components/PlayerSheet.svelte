@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { RATES } from "../lib/shortcuts";
   import { formatRate, loadSheetTab, saveSheetTab, type SheetTab } from "../lib/playerSheet";
   import { type PracticeSettings } from "../lib/practice";
@@ -19,7 +20,10 @@
   ];
 
   let {
+    syncActions,
     userId = "",
+    requestedTab,
+    requestId = 0,
     songId,
     practice,
     hasAudio,
@@ -57,7 +61,10 @@
     onnotation,
     onstage,
   }: {
+    syncActions?: Snippet;
     userId?: string;
+    requestedTab?: SheetTab;
+    requestId?: number;
     songId: string;
     practice: PracticeSettings;
     hasAudio: boolean;
@@ -103,10 +110,26 @@
 
   $effect.pre(() => {
     const id = userId;
+    void requestId;
+    if (requestedTab) {
+      tab = requestedTab;
+      return;
+    }
     if (touched) return;
     tab = loadSheetTab(id);
   });
 
+  $effect(() => {
+    const node = root;
+    void requestedTab;
+    void requestId;
+    if (!node) return;
+    queueMicrotask(() =>
+      node.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus(),
+    );
+  });
+
+  const rates = $derived([...new Set([...RATES, rate])].sort((a, b) => a - b));
   const showSyncTools = $derived(hasAudio && !demo && !readOnly);
 
   function tabLabel(id: SheetTab): string {
@@ -215,7 +238,7 @@
               value={String(rate)}
               onchange={(event) => onrate(Number(event.currentTarget.value))}
             >
-              {#each RATES as value (value)}
+              {#each rates as value (value)}
                 <option value={String(value)}>{formatRate(value)}</option>
               {/each}
             </select>
@@ -252,6 +275,7 @@
         </div>
       {/if}
     {:else if tab === "sync"}
+      {@render syncActions?.()}
       <p class="hint">
         {#if hasAudio && anchorCount === 0 && publishedSync}
           {t("player.usingPublished")}

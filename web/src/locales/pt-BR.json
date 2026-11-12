@@ -2494,5 +2494,30 @@
     "saved": "Salvo em {path}",
     "backUpNow": "Fazer backup agora",
     "running": "Fazendo backup…"
+  },
+  "auditPanel": {
+    "setStart": "Definir início",
+    "setEnd": "Definir fim",
+    "range": "Compassos {a}–{b}",
+    "loopName": "Nome do loop",
+    "deleteLoop": "Excluir loop {name}",
+    "chooseRange": "Vá ao primeiro compasso e escolha Definir início. Depois vá ao último compasso e escolha Definir fim.",
+    "adjustRange": "Vá a outro compasso e escolha Definir início ou Definir fim para ajustar este intervalo."
+  },
+  "auditRecovery": {
+    "retry": "Tentar novamente",
+    "library": "Voltar à biblioteca"
+  },
+  "auditPlayer": {
+    "jumpSection": "Ir para a seção",
+    "sectionBar": "{name} · Compasso {bar}",
+    "position": "Compasso {bar} de {total}, {time}",
+    "preparing": "Preparando reprodução…",
+    "playbackFailed": "Não foi possível iniciar a reprodução.",
+    "audioFailed": "Não foi possível carregar a gravação. Verifique sua conexão e tente novamente.",
+    "retryPlayback": "Tentar reproduzir novamente",
+    "notSaved": "Não salvo",
+    "retrySave": "Tentar salvar sincronização",
+    "undoSync": "Desfazer alteração de sincronização"
   }
 }
