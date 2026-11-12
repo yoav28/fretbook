@@ -14,13 +14,13 @@ describe("separateEffectBands", () => {
 });
 
 describe("hideScoreHeader", () => {
-  it("turns off the title, artist and tuning header but keeps the music", () => {
+  it("turns off the title and artist header while keeping tuning and music", () => {
     const settings = new alphaTab.Settings();
     hideScoreHeader(settings, alphaTab);
     const shown = (element: alphaTab.NotationElement) => settings.notation.elements.get(element);
     expect(shown(alphaTab.NotationElement.ScoreTitle)).toBe(false);
     expect(shown(alphaTab.NotationElement.ScoreArtist)).toBe(false);
-    expect(shown(alphaTab.NotationElement.GuitarTuning)).toBe(false);
+    expect(shown(alphaTab.NotationElement.GuitarTuning)).not.toBe(false);
     expect(shown(alphaTab.NotationElement.TrackNames)).not.toBe(false);
   });
 });
