@@ -1785,6 +1785,20 @@ div.player-page .song-header .cover {
   transition: none !important;
 }
 
+.at-playing-outline {
+  position: absolute;
+  z-index: 1001;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.at-playing-outline path {
+  fill: none;
+  stroke: #000;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
 /* Wait mode: the cursor pulses while it waits for a note and turns green on a hit. */
 .score[data-wait="waiting"] .at-cursor-beat {
   animation: wait-pulse 1.1s ease-in-out infinite;
