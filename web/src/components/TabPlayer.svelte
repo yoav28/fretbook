@@ -117,21 +117,23 @@
   let pendingSync: (() => Promise<void>) | null = null;
 
   function updateBeatSpotlight(element: HTMLDivElement) {
-    const cursors = element.querySelector<HTMLElement>(".at-cursors");
-    const beatCursor = cursors?.querySelector<HTMLElement>(".at-cursor-beat");
-    if (!cursors || !beatCursor) return;
-    let spotlight = cursors.querySelector<HTMLElement>(".at-beat-spotlight");
-    if (!spotlight) {
-      spotlight = document.createElement("div");
-      spotlight.setAttribute("class", "at-beat-spotlight");
-      cursors.insertBefore(spotlight, beatCursor);
-    }
-    const cursorBox = beatCursor.getBoundingClientRect();
-    const cursorLayerBox = cursors.getBoundingClientRect();
-    spotlight.style.left = `${cursorBox.left - cursorLayerBox.left + cursorBox.width / 2 - 32}px`;
-    spotlight.style.top = `${cursorBox.top - cursorLayerBox.top}px`;
-    spotlight.style.width = "64px";
-    spotlight.style.height = `${cursorBox.height}px`;
+    requestAnimationFrame(() => {
+      const cursors = element.querySelector<HTMLElement>(".at-cursors");
+      const beatCursor = cursors?.querySelector<HTMLElement>(".at-cursor-beat");
+      if (!cursors || !beatCursor) return;
+      let spotlight = cursors.querySelector<HTMLElement>(".at-beat-spotlight");
+      if (!spotlight) {
+        spotlight = document.createElement("div");
+        spotlight.setAttribute("class", "at-beat-spotlight");
+        cursors.insertBefore(spotlight, beatCursor);
+      }
+      const cursorBox = beatCursor.getBoundingClientRect();
+      const cursorLayerBox = cursors.getBoundingClientRect();
+      spotlight.style.left = `${cursorBox.left - cursorLayerBox.left + cursorBox.width / 2 - 32}px`;
+      spotlight.style.top = `${cursorBox.top - cursorLayerBox.top}px`;
+      spotlight.style.width = "64px";
+      spotlight.style.height = `${cursorBox.height}px`;
+    });
   }
 
   $effect(() => {

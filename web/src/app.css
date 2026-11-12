@@ -1809,6 +1809,7 @@ div.player-page .song-header .cover {
 .at-cursor-beat {
   background: var(--accent) !important;
   box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 55%, transparent);
+  transition: none !important;
 }
 
 /* Wait mode: the cursor pulses while it waits for a note and turns green on a hit. */
