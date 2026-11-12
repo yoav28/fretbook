@@ -22,44 +22,51 @@ function tuningStaff(lines: StaffLine[], count: number, notation: boolean): Staf
 
 export function renderTuningLabels(host: HTMLElement, tuning: number[], notation: boolean): void {
   if (tuning.length < 2) return;
-  const svg = host.querySelector<SVGSVGElement>("svg.at-surface-svg");
-  if (!svg) return;
-  svg.querySelector("[data-tuning-labels]")?.remove();
+  for (const svg of host.querySelectorAll<SVGSVGElement>("svg.at-surface-svg")) {
+    svg.querySelector("[data-tuning-labels]")?.remove();
+    if (!svg.querySelector("rect") && svg.textContent?.trim().endsWith("Tuning")) {
+      svg.remove();
+      continue;
+    }
+    const width = Number.parseFloat(svg.getAttribute("width") ?? "0");
+    if (!width) continue;
+    const rows = new Map<number, StaffLine>();
+    for (const rect of svg.querySelectorAll("rect")) {
+      const x = Number.parseFloat(rect.getAttribute("x") ?? "0");
+      const yValue = Number.parseFloat(rect.getAttribute("y") ?? "0");
+      const rectWidth = Number.parseFloat(rect.getAttribute("width") ?? "0");
+      const height = Number.parseFloat(rect.getAttribute("height") ?? "0");
+      if (height > 4 || rectWidth < 24) continue;
+      const y = Math.round((yValue + height / 2) * 2) / 2;
+      const line = rows.get(y) ?? { y, x, width: 0 };
+      line.x = Math.min(line.x, x);
+      line.width += rectWidth;
+      rows.set(y, line);
+    }
 
-  const width = Number.parseFloat(svg.getAttribute("width") ?? "0");
-  if (!width) return;
-  const rows = new Map<number, StaffLine>();
-  for (const rect of svg.querySelectorAll("rect")) {
-    const bounds = rect.getBBox();
-    if (bounds.height > 4 || bounds.width < 24) continue;
-    const y = Math.round((bounds.y + bounds.height / 2) * 2) / 2;
-    const line = rows.get(y) ?? { y, x: bounds.x, width: 0 };
-    line.x = Math.min(line.x, bounds.x);
-    line.width += bounds.width;
-    rows.set(y, line);
+    const lines = [...rows.values()]
+      .filter((line) => line.width >= width * 0.3)
+      .sort((left, right) => left.y - right.y);
+    const staff = tuningStaff(lines, tuning.length, notation);
+    if (!staff.length) continue;
+
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.setAttribute("data-tuning-labels", "true");
+    group.setAttribute("aria-hidden", "true");
+    const fontSize = Math.min(20, (staff[1]?.y ?? staff[0].y + 20) - staff[0].y);
+    for (let index = 0; index < staff.length; index += 1) {
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("x", String(staff[index].x - 8));
+      label.setAttribute("y", String(staff[index].y));
+      label.setAttribute("fill", "#8e8e93");
+      label.setAttribute("font-family", "Inter, sans-serif");
+      label.setAttribute("font-size", String(fontSize));
+      label.setAttribute("text-anchor", "end");
+      label.setAttribute("dominant-baseline", "middle");
+      label.textContent = pitchClassName(tuning[index]);
+      group.append(label);
+    }
+    svg.append(group);
+    return;
   }
-
-  const lines = [...rows.values()]
-    .filter((line) => line.width >= width * 0.3)
-    .sort((left, right) => left.y - right.y);
-  const staff = tuningStaff(lines, tuning.length, notation);
-  if (!staff.length) return;
-
-  const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  group.setAttribute("data-tuning-labels", "true");
-  group.setAttribute("aria-hidden", "true");
-  const fontSize = Math.min(20, (staff[1]?.y ?? staff[0].y + 20) - staff[0].y);
-  for (let index = 0; index < staff.length; index += 1) {
-    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    label.setAttribute("x", String(staff[index].x - 8));
-    label.setAttribute("y", String(staff[index].y));
-    label.setAttribute("fill", "#8e8e93");
-    label.setAttribute("font-family", "Inter, sans-serif");
-    label.setAttribute("font-size", String(fontSize));
-    label.setAttribute("text-anchor", "end");
-    label.setAttribute("dominant-baseline", "middle");
-    label.textContent = pitchClassName(tuning[index]);
-    group.append(label);
-  }
-  svg.append(group);
 }

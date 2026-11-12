@@ -394,7 +394,11 @@
     settings.core.logLevel = alphaTab.LogLevel.Warning;
     settings.core.enableLazyLoading = false;
     settings.display.staveProfile = staveProfile(untrack(() => ui.notation));
-    settings.display.padding = [65, 35, 35, 35];
+    settings.display.padding = [95, 35, 35, 35];
+    settings.notation.elements.set(alphaTab.NotationElement.GuitarTuning, false);
+    settings.notation.elements.set(alphaTab.NotationElement.GuitarTabsClef, false);
+    if (document_.tracks.length === 1)
+      settings.notation.elements.set(alphaTab.NotationElement.TrackNames, false);
     separateEffectBands(settings);
     const resources = settings.display.resources;
     resources.staffLineColor = alphaTab.model.Color.fromJson("#55565d")!;
