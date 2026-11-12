@@ -4,7 +4,6 @@ Self-hosted tabs, chord sheets and sheet music for bass and guitar. Import from 
 Guitar Pro, MusicXML, MIDI, ASCII tab or ChordPro; play along with a recording; practise with a metronome,
 loops, a speed trainer, a tuner and wait mode.
 
-![The Fretbook library](assets/screenshots/library.png)
 
 ## Where to start
 

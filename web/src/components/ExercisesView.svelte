@@ -173,7 +173,6 @@
         artist: "",
         source_kind: "manual",
         document: result.ok.document,
-        tags: [t("exercises.tag")],
       });
       navigate(`/songs/${song.id}`);
     } catch (err) {

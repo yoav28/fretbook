@@ -127,7 +127,6 @@ const song = {
   id: "mute-regression",
   title: "Riff",
   artist: "",
-  tags: [],
   source_ref: {},
   has_audio: true,
   audio_url: "/recording.mp3",

@@ -1,6 +1,5 @@
 # Playing and syncing
 
-![The song page](../assets/screenshots/song-page.png)
 
 ## Playing a tab
 

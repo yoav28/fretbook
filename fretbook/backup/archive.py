@@ -7,8 +7,7 @@ Layout::
     songs/<song id>/song.cho            a chord sheet
     songs/<song id>/media/<media id>.ext  audio and kept uploads
 
-Each manifest entry also lists the song's ``tags`` and its ``favourite`` flag. Archives from before tags
-existed have neither, and restore reads that as no tags and not starred.
+Each manifest entry also lists the song's ``favourite`` flag.
 
 The archive is written to disk one song at a time and media is copied in chunks
 by ``zipfile``, so a large library never sits in memory.
@@ -135,7 +134,6 @@ def write_archive(
                 "updated_at": song["updated_at"],
                 "file": member,
                 "media": files,
-                "tags": song["tags"],
                 "favourite": song["favourite"],
                 "metadata": {
                     "key": _own_key(song),

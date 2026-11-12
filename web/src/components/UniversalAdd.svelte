@@ -6,8 +6,8 @@
   import type { DuplicateAction } from "../lib/types";
 
   export type AddInput =
-    | { file: File; duplicates?: DuplicateAction; tags?: string }
-    | { files: File[]; duplicates?: DuplicateAction; tags?: string }
+    | { file: File; duplicates?: DuplicateAction }
+    | { files: File[]; duplicates?: DuplicateAction }
     | { text: string }
     | { url: string };
 

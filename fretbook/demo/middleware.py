@@ -10,7 +10,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 _UNSAFE = {"POST", "PUT", "PATCH", "DELETE"}
 
 # Writes a visitor can still make: they only record what they looked at or how they play, and the nightly reset
-# clears them. Everything else (imports, uploads, edits, deletes, tags, setlists, tokens, backups) is refused.
+# clears them. Everything else (imports, uploads, edits, deletes, setlists, tokens, backups) is refused.
 _ALLOWED = (
     re.compile(r"^/api/songs/[^/]+/opened$"),
     re.compile(r"^/api/me/settings$"),

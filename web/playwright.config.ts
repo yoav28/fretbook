@@ -24,7 +24,6 @@ export default defineConfig({
     "retune.spec.ts",
     "score-labels.spec.ts",
     "song-page.spec.ts",
-    "tags.spec.ts",
     "universal-add.spec.ts",
     "upload.spec.ts",
   ],

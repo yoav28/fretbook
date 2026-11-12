@@ -86,37 +86,3 @@ test("bulk upload multiple files at once shows progress and imports all songs", 
   await expect(page.getByTestId("song-title").filter({ hasText: "Sunny Day Blues" })).toBeVisible();
   expect(await seed.list()).toHaveLength(2);
 });
-
-test("bulk upload a zip archive extracts and imports all scores with archive name as tag", async ({
-  page,
-  seed,
-}) => {
-  const py = pythonCommand();
-  const script =
-    "import zipfile, io, sys; b = io.BytesIO(); z = zipfile.ZipFile(b, 'w'); " +
-    "z.writestr('song-a.cho', '{title: Archive Song A}\\n{artist: Archive Band}\\n[C]Hello\\n'); " +
-    "z.writestr('song-b.cho', '{title: Archive Song B}\\n{artist: Archive Band}\\n[D]World\\n'); " +
-    "z.close(); sys.stdout.buffer.write(b.getvalue())";
-  const zipBuffer = execSync(`${py} -c "${script}"`);
-
-  await page.goto("/");
-  await page.getByTestId("add-song").click();
-  await page.getByTestId("add-more-toggle").click();
-  await page.getByTestId("add-mode-file").click();
-  await page.getByTestId("add-file-input").setInputFiles({
-    name: "my-pack.zip",
-    mimeType: "application/zip",
-    buffer: zipBuffer,
-  });
-
-  await expect(page.getByTestId("recent-imports-panel")).toBeVisible();
-  await expect(page.getByTestId("song-title").filter({ hasText: "Archive Song A" })).toBeVisible();
-  await expect(page.getByTestId("song-title").filter({ hasText: "Archive Song B" })).toBeVisible();
-
-  const songs = await seed.list();
-  expect(songs).toHaveLength(2);
-  const detail = (await (await page.request.get(`/api/songs/${songs[0].id}`)).json()) as {
-    source_ref?: { tags?: string[] };
-  };
-  expect(detail.source_ref?.tags).toContain("my-pack");
-});

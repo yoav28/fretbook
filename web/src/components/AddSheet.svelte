@@ -333,7 +333,6 @@
       await processBulkImport({
         files: input.files,
         duplicates: input.duplicates ?? duplicates,
-        tags: input.tags,
         family: defaultFamily(),
       });
       return;

@@ -61,7 +61,6 @@ describe("ExercisesView", () => {
     await waitFor(() => expect(router.navigate).toHaveBeenCalledWith("/songs/song-1"));
     const body = api.importDocument.mock.calls[0][0];
     expect(body.title).toBe("A major, from fret 5");
-    expect(body.tags).toEqual(["exercise"]);
     expect(body.document.tracks[0].tuning_midi).toEqual([64, 59, 55, 50, 45, 40]);
   });
 

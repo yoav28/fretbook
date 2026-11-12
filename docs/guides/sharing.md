@@ -32,5 +32,5 @@ the token, which is long and random and starts with `sh_`. You can set a lifetim
 **Revoke** stops the link immediately. A revoked, expired, or unknown link all look the same to a visitor: the
 song is not available. There is a limit of 20 active links per song.
 
-The public page plays the song. It does not include your notes, tags, or the real song id, and it has no editor,
+The public page plays the song. It does not include your notes or the real song id, and it has no editor,
 no sync marks, and no way to change the song. Responses are marked not to be stored or indexed.

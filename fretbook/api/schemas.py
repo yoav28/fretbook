@@ -223,8 +223,6 @@ class SongSummary(BaseModel):
     # Estimated difficulty of the preferred track, or of a chord sheet's chords, 1 to 10. Null for a chord sheet
     # without chords. Always present in the JSON.
     difficulty: float | None
-    # The caller's tags for this song, sorted A to Z ignoring case.
-    tags: list[str]
     # The song's key (`C`, `F#`, `Am`, `Bbm`): the one the caller set, else the one detected from the score's notes
     # or a chord sheet's `{key}`. Null when neither is known. Always present in the JSON.
     key: str | None
@@ -237,7 +235,7 @@ class SongSummary(BaseModel):
     # Where the uploaded or looked-up cover art is served from, relative to the app root, or null when the song has
     # none (the app draws a generated cover). Always present in the JSON.
     cover_url: str | None
-    # In a library search that matched this chord sheet through its lyrics and not its title, artist or tags: the
+    # In a library search that matched this chord sheet through its lyrics and not its title or artist: the
     # matching words in context. Each matched word sits between U+0002 and U+0003, and lines are joined by " / ".
     # Null otherwise, and always null outside the song list. Always present in the JSON.
     lyrics_snippet: str | None
@@ -278,24 +276,6 @@ class LibraryCounts(BaseModel):
     acoustic: int
     chords: int
     favourites: int
-
-
-class TagCount(BaseModel):
-    tag: str
-    count: int
-
-
-class SongTags(BaseModel):
-    tags: list[str]
-
-
-class TagsAdded(BaseModel):
-    updated: int
-
-
-class TagsChanged(BaseModel):
-    updated: int
-    """How many songs had the tag."""
 
 
 class Favourite(BaseModel):

@@ -20,7 +20,6 @@ vi.mock("../lib/api", () => ({
     next_cursor: null,
     counts: { all: 0, bass: 0, electric: 0, acoustic: 0, chords: 0, favourites: 0 },
   }),
-  listTags: vi.fn().mockResolvedValue([]),
   getFacets: vi.fn().mockResolvedValue({ keys: [], genres: [] }),
 }));
 

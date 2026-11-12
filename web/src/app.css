@@ -3795,12 +3795,6 @@ kbd {
   min-height: 44px;
 }
 
-/* Tags and favourites */
-
-.tag-chips {
-  margin-top: -1rem;
-}
-
 .chip .icon {
   margin-right: 0.3rem;
   vertical-align: -2px;
@@ -4144,27 +4138,6 @@ kbd {
   .listen-meter-fill {
     transition: none;
   }
-}
-
-.manage-tags {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.5rem;
-}
-
-.manage-tags li,
-.manage-tags form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.manage-tags .manage-tag-name {
-  flex: 1;
-  font-weight: 600;
 }
 
 /* ----------------------------------------------------------------- lessons */

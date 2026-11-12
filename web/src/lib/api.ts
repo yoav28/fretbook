@@ -60,10 +60,6 @@ import type {
   SongPage as ContractSongPage,
   SongSummary as ContractSongSummary,
   SongsMoved,
-  SongTags as ContractSongTags,
-  TagCount as ContractTagCount,
-  TagsAdded,
-  TagsChanged,
 } from "./api-types";
 import { keyed } from "./i18n.svelte";
 import type { EditBase } from "./offline/merge";
@@ -105,7 +101,6 @@ import type {
   SongQuery,
   SongPractice,
   SongSummary,
-  TagCount,
   Track,
 } from "./types";
 
@@ -118,7 +113,6 @@ type _matchesContract = [
   AssertAssignable<ContractSettings, Settings>,
   AssertAssignable<ContractSongSummary, SongSummary>,
   AssertAssignable<ContractSongPage, SongPage>,
-  AssertAssignable<ContractTagCount, TagCount>,
   AssertAssignable<ContractLibraryFacets, LibraryFacets>,
   AssertAssignable<ContractImportPreview, ImportPreview>,
   AssertAssignable<ContractAdminUser, AdminUser>,
@@ -313,54 +307,6 @@ export function lookupMetadata(id: string): Promise<SongDetail> {
 /** Record that the song was opened, for the "last opened" sort. */
 export function markSongOpened(id: string): Promise<void> {
   return request(`/api/songs/${id}/opened`, { method: "POST" });
-}
-
-/** Every tag on the caller's songs with its song count, most used first. */
-export function listTags(library = ""): Promise<TagCount[]> {
-  return request<ContractTagCount[]>(withLibrary("/api/tags", library));
-}
-
-/** Replace the song's tags. Resolves to the tags as stored: trimmed, without repeats, sorted. */
-export async function putSongTags(id: string, tags: string[]): Promise<string[]> {
-  const body = await request<ContractSongTags>(`/api/songs/${id}/tags`, json("PUT", { tags }));
-  return body.tags;
-}
-
-/** Like `putSongTags`, but with no network the change is queued and the tags are answered as asked for. */
-export async function setSongTags(id: string, tags: string[]): Promise<string[]> {
-  try {
-    return await putSongTags(id, tags);
-  } catch (error) {
-    if (!isOfflineError(error)) throw error;
-    queueOp({ kind: "tags", songId: id, tags });
-    return tags;
-  }
-}
-
-/** Rename a tag on every song, or merge it into the tag that already has the new name. Resolves to the songs changed. */
-export async function renameTag(tag: string, name: string, library = ""): Promise<number> {
-  const body = await request<TagsChanged>(
-    withLibrary(`/api/tags/${encodeURIComponent(tag)}`, library),
-    json("PATCH", { name }),
-  );
-  return body.updated;
-}
-
-/** Remove a tag from every song. Resolves to the songs changed. */
-export async function deleteTag(tag: string, library = ""): Promise<number> {
-  const body = await request<TagsChanged>(
-    withLibrary(`/api/tags/${encodeURIComponent(tag)}`, library),
-    {
-      method: "DELETE",
-    },
-  );
-  return body.updated;
-}
-
-/** Add tags to many songs at once. Resolves to how many songs were updated. */
-export async function addTags(songIds: string[], tags: string[]): Promise<number> {
-  const body = await request<TagsAdded>("/api/tags/add", json("POST", { song_ids: songIds, tags }));
-  return body.updated;
 }
 
 /** The caller's personal API tokens, newest first. Never includes the secrets. */
@@ -860,7 +806,6 @@ export function importDocument(body: {
   source_kind: string;
   document: ScoreDocument;
   on_duplicate?: DuplicateAction;
-  tags?: string[];
 }): Promise<SongDetail> {
   return view(request<ContractSongDetail>("/api/songs/import-document", json("POST", body)));
 }
@@ -868,14 +813,12 @@ export function importDocument(body: {
 export function importBulk(
   files: File[],
   duplicates: DuplicateAction = "skip",
-  tags?: string,
 ): Promise<BulkImportAccepted> {
   const form = new FormData();
   for (const file of files) {
     form.append("files", file);
   }
   form.set("duplicates", duplicates);
-  if (tags) form.set("tags", tags);
   return request<ContractBulkImportAccepted>("/api/imports/bulk", {
     method: "POST",
     body: form,

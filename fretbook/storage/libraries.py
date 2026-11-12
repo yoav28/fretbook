@@ -306,10 +306,6 @@ class LibraryStore:
                     row["notes"],
                 ),
             )
-            conn.execute(
-                "INSERT INTO song_tags (song_id, tag, tag_key) SELECT ?, tag, tag_key FROM song_tags WHERE song_id = ?",
-                (new_id, song_id),
-            )
             _index_lyrics(conn, new_id, row["chordpro"])
         try:
             self.media.copy_song_files(song_id, dest, new_id)
@@ -457,7 +453,7 @@ class LibraryStore:
 
 
 def _public_song(row, token: str, has_audio: bool) -> dict[str, Any]:
-    """Playback fields only. No ids, notes, tags, catalogue metadata, or source reference."""
+    """Playback fields only. No ids, notes, catalogue metadata, or source reference."""
     key = row["musical_key"] or row["detected_key"]
     try:
         tracks = json.loads(row["difficulty_detail"] or "[]")
@@ -487,7 +483,6 @@ def _public_song(row, token: str, has_audio: bool) -> dict[str, Any]:
         "updated_at": row["updated_at"],
         "favourite": False,
         "difficulty": row["difficulty"],
-        "tags": [],
         "key": key,
         "key_detected": not row["musical_key"] and row["detected_key"] is not None,
         "genre": "",

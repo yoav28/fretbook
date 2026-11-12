@@ -26,7 +26,6 @@ from fretbook.score.model import ScoreDocument, content_hash
 from fretbook.score.playback import played_bars
 from fretbook.storage.media import AUDIO_TYPES, MediaStore
 from fretbook.storage.repository import SongRepository
-from fretbook.tags import suggest_tags
 
 logger = logging.getLogger(__name__)
 
@@ -299,9 +298,6 @@ def _store_result(
     owner_id = job["owner_id"]
     payload = job.get("payload") or {}
     on_duplicate = payload.get("on_duplicate") or "keep_both"
-    tags = payload.get("tags") or []
-    if isinstance(tags, str):
-        tags = [tags]
 
     warnings = list(result.warnings)
     saved: dict[str, Any] | None = None
@@ -326,8 +322,6 @@ def _store_result(
 
         if hash_val is not None:
             source_ref["content_hash"] = hash_val
-        if tags:
-            source_ref["tags"] = tags
 
         # A re-import that names the song it came from (the watched inbox in library mode) replaces that song.
         replace_id = payload.get("replace_song_id")
@@ -367,9 +361,6 @@ def _store_result(
                     chordpro=result.chordpro,
                     source_ref=source_ref,
                 )
-                if tags and saved is not None:
-                    songs.add_tags(owner_id, [duplicate["id"]], tags)
-                    saved = songs.get_song(owner_id, duplicate["id"]) or saved
                 warnings.append(
                     Notice(
                         "import.replacedDuplicate",
@@ -389,13 +380,6 @@ def _store_result(
                 source_ref=source_ref,
                 slug=result.slug,
             )
-            # A new song starts with what the import knows + any batch tags; a re-import keeps the tags the user edited.
-            tags_to_add = suggest_tags(saved)
-            if tags:
-                tags_to_add = list(dict.fromkeys([*tags_to_add, *tags]))
-            if tags_to_add:
-                songs.add_tags(owner_id, [saved["id"]], tags_to_add)
-            saved = songs.get_song(owner_id, saved["id"]) or saved
     if result.audio_file is not None:
         suffix = next((ext for ext, kind in AUDIO_TYPES.items() if kind == result.audio_content_type), ".mp3")
         media.save_file(

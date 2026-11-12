@@ -45,7 +45,7 @@ describe("withOp", () => {
 describe("readOps / writeOps", () => {
   it("round-trips, drops junk, and clears storage when empty", () => {
     const storage = memory();
-    const ops = [item("1", { kind: "tags", songId: "a", tags: ["x"] })];
+    const ops = [item("1", { kind: "favourite", songId: "a", favourite: true })];
     writeOps(ops, storage);
     expect(readOps(storage)).toEqual(ops);
     storage.setItem("fretbook.offline.ops.v1", JSON.stringify([{ id: 1 }, ...ops]));
